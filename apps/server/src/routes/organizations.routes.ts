@@ -32,6 +32,7 @@ import { encrypt } from "@avantej-core/db";
 import {
 	runTenantMigrations,
 	seedRBACData,
+	seedDefaultTaxRate,
 	LATEST_MIGRATION_VERSION,
 } from "@avantej-core/db";
 import { Pool } from "@neondatabase/serverless";
@@ -256,6 +257,9 @@ organizationRoutes.post("/", authMiddleware, async (c) => {
 
 			// 5.1. Seed RBAC data (roles, permissions, role-permission mappings)
 			await seedRBACData(tenantDb);
+			// 5.2. Seed a 0% default tax rate — POS requires an active tax rate to
+			// record any sale, so a new tenant would otherwise be unable to transact.
+			await seedDefaultTaxRate(tenantDb);
 
 			// 6. Create default hierarchy node (organization level)
 			const [orgNode] = await tenantDb

@@ -46,6 +46,7 @@ import {
 } from "./lead-attribution.service";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
+import { nextBranchDocNumber } from "./numbering.service";
 import * as branchStatsCache from "./branch-stats-cache.service";
 import { resolveScopeNodeIds } from "./hierarchy-scope";
 
@@ -562,10 +563,18 @@ export async function recordPosSale(
 			});
 		}
 
-		// Step 6: Generate numbers
+		// Step 6: Generate numbers.
+		// Sales-order numbers stay on the global sequence (internal id, not a
+		// customer-facing tax doc). Invoice + receipt(payment) numbers use the
+		// branch's gapless per-branch counter WHEN the branch has a prefix
+		// configured (WS3), else fall back to the global sequence unchanged.
 		const salesOrderNumber = await generateSalesOrderNumber(tx, now);
-		const paymentNumber = await generatePaymentNumber(tx, now);
-		const invoiceNumber = await generateInvoiceNumber(tx, now);
+		const paymentNumber =
+			(await nextBranchDocNumber(tx, input.branchId, "receipt")) ??
+			(await generatePaymentNumber(tx, now));
+		const invoiceNumber =
+			(await nextBranchDocNumber(tx, input.branchId, "invoice")) ??
+			(await generateInvoiceNumber(tx, now));
 
 		// Step 7: Insert sales_orders
 		// totalAmount = subtotal - discount (PRE-TAX, per existing schema convention)

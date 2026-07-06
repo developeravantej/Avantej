@@ -43,8 +43,12 @@ import { z } from "zod";
 export const Route = createFileRoute("/_authenticated/billing/connect")({
 	component: BillingConnectPage,
 	validateSearch: z.object({
-		return: z.string().optional(),
-		refresh: z.string().optional(),
+		// The Stripe OAuth callback redirects with `?return=1` (and flows may add
+		// `?refresh=1`). TanStack Router's search parser coerces bare numerics to
+		// numbers, so `z.string()` would reject `1` ("expected string, received
+		// number"). Coerce these flag params so 1 / "1" both parse to "1".
+		return: z.coerce.string().optional(),
+		refresh: z.coerce.string().optional(),
 		oauth_error: z.string().optional(),
 		country: z.string().optional(),
 	}),
@@ -246,6 +250,15 @@ function CountryAccountCard({
 }) {
 	const isActive = account.chargesEnabled;
 	const isPending = !!account.stripeAccountId && !isActive;
+	// Show "Continue onboarding" whenever the account isn't fully enabled — not
+	// only pre-charges. An account can be charges-active but still have payouts
+	// disabled or requirements past-due (e.g. an unverified owner ID doc), and
+	// the admin needs a way back into Stripe onboarding to finish it.
+	const needsOnboarding =
+		!!account.stripeAccountId &&
+		(!account.chargesEnabled ||
+			!account.payoutsEnabled ||
+			!account.detailsSubmitted);
 	const countryName =
 		SUPPORTED_COUNTRIES.find((c) => c.code === account.countryCode)?.name ??
 		account.countryCode;
@@ -285,7 +298,7 @@ function CountryAccountCard({
 					<StatusRow label="Payouts" ok={account.payoutsEnabled} />
 					<StatusRow label="Details" ok={account.detailsSubmitted} />
 				</div>
-				{isPending && (
+				{needsOnboarding && (
 					<Button
 						variant="outline"
 						size="sm"
@@ -296,7 +309,7 @@ function CountryAccountCard({
 						{continueLoading && (
 							<Loader2 className="mr-2 size-4 animate-spin" />
 						)}
-						Continue onboarding
+						{isActive ? "Complete verification" : "Continue onboarding"}
 						<ExternalLink className="ml-2 size-3.5" />
 					</Button>
 				)}

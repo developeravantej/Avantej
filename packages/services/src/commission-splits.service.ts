@@ -39,6 +39,8 @@ import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { resolveBranchCurrency, DEFAULT_CURRENCY } from "./currency.service";
+import { assertPeriodOpen } from "./payroll-period.service";
 import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
 import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
 import { commissionTracks } from "@avantej-core/db/schema/tenant/commission-tracks";
@@ -997,6 +999,15 @@ export async function voidCommissionSplit(
 		if (existing.status === "void") {
 			return existing; // Idempotent
 		}
+		// WS5: can't void a split whose payroll period is locked — that would
+		// mutate an already-settled month. Corrections go to the current open
+		// period as a manual adjustment instead.
+		await assertPeriodOpen(tx, {
+			appointmentId: existing.appointmentId,
+			salesOrderId: existing.salesOrderId,
+			packageInstanceId: existing.packageInstanceId,
+			earnedAt: existing.earnedAt,
+		});
 
 		const [updated] = await tx
 			.update(commissionSplits)
@@ -1125,9 +1136,20 @@ export interface CreateManualAdjustmentParams {
 // Liability summary (Phase 6)
 // ---------------------------------------------------------------------------
 
+export interface LiabilityTotals {
+	approvedUnpaidCents: number;
+	paidCents: number;
+	manualAdjustmentCents: number;
+	netPayableCents: number;
+	/** Breakdown of approvedUnpaidCents by roleType. */
+	byRoleType: Record<string, number>;
+}
+
 export interface LiabilitySummaryTrainer {
 	memberId: string; // members.userId (staffId on commission_splits)
 	name: string; // from control-panel user.name; falls back to userId
+	/** WS1: ISO currency of this trainer's earnings (from the split's branch). */
+	currency: string;
 	approvedUnpaidCents: number;
 	paidCents: number;
 	manualAdjustmentCents: number; // manual splits where status IN (pending, approved)
@@ -1141,14 +1163,16 @@ export interface LiabilitySummaryTrainer {
 
 export interface LiabilitySummaryResult {
 	trainers: LiabilitySummaryTrainer[];
-	totals: {
-		approvedUnpaidCents: number;
-		paidCents: number;
-		manualAdjustmentCents: number;
-		netPayableCents: number;
-		/** Breakdown of approvedUnpaidCents by roleType across all trainers. */
-		byRoleType: Record<string, number>;
-	};
+	/**
+	 * Legacy single-total (sum across ALL currencies). Correct only for
+	 * single-currency tenants; for multi-country use `totalsByCurrency`.
+	 */
+	totals: LiabilityTotals;
+	/**
+	 * WS1 (multi-currency): one totals bucket per ISO currency so a MY/TH/SG
+	 * tenant never sees co-mingled grand totals.
+	 */
+	totalsByCurrency: Record<string, LiabilityTotals>;
 }
 
 export interface LiabilitySummaryParams {
@@ -1217,6 +1241,7 @@ export async function liabilitySummary(
 					netPayableCents: 0,
 					byRoleType: {},
 				},
+				totalsByCurrency: {},
 			};
 		}
 		// Fetch userIds of members whose hierarchyScopeId is within the scope set
@@ -1235,6 +1260,7 @@ export async function liabilitySummary(
 					netPayableCents: 0,
 					byRoleType: {},
 				},
+				totalsByCurrency: {},
 			};
 		}
 	}
@@ -1444,6 +1470,7 @@ export async function liabilitySummary(
 				netPayableCents: 0,
 				byRoleType: {},
 			},
+			totalsByCurrency: {},
 		};
 	}
 
@@ -1462,6 +1489,32 @@ export async function liabilitySummary(
 		}
 	} catch {
 		// Best-effort: if control panel is unavailable, names fall back to userId
+	}
+
+	// WS1 (multi-currency): resolve each staff's currency from their branch so
+	// totals bucket per currency (a MY/TH/SG tenant never sees co-mingled totals).
+	// Cached by scope node — many staff share a branch.
+	const staffCurrencyMap = new Map<string, string>();
+	try {
+		const scopeCurrencyCache = new Map<string, string>();
+		const memberScopes = await tenantDb
+			.select({ userId: members.userId, scope: members.hierarchyScopeId })
+			.from(members)
+			.where(inArray(members.userId, distinctStaffIds));
+		for (const m of memberScopes) {
+			if (!m.scope) {
+				staffCurrencyMap.set(m.userId, DEFAULT_CURRENCY);
+				continue;
+			}
+			let cur = scopeCurrencyCache.get(m.scope);
+			if (!cur) {
+				cur = await resolveBranchCurrency(tenantDb, m.scope);
+				scopeCurrencyCache.set(m.scope, cur);
+			}
+			staffCurrencyMap.set(m.userId, cur);
+		}
+	} catch {
+		// Best-effort: trainers fall back to DEFAULT_CURRENCY below.
 	}
 
 	// Rows are now (staffId, roleType) tuples. Collapse them into per-trainer entries
@@ -1497,6 +1550,7 @@ export async function liabilitySummary(
 		trainers.push({
 			memberId: staffId,
 			name: staffNameMap.get(staffId) ?? staffId,
+			currency: staffCurrencyMap.get(staffId) ?? DEFAULT_CURRENCY,
 			approvedUnpaidCents: agg.approvedUnpaidCents,
 			paidCents: agg.paidCents,
 			manualAdjustmentCents: agg.manualAdjustmentCents,
@@ -1526,7 +1580,30 @@ export async function liabilitySummary(
 		},
 	);
 
-	return { trainers, totals: { ...totals, byRoleType: totalByRoleType } };
+	// WS1: per-currency totals so multi-country grand totals are never co-mingled.
+	const totalsByCurrency: Record<string, LiabilityTotals> = {};
+	for (const t of trainers) {
+		const bucket = (totalsByCurrency[t.currency] ??= {
+			approvedUnpaidCents: 0,
+			paidCents: 0,
+			manualAdjustmentCents: 0,
+			netPayableCents: 0,
+			byRoleType: {},
+		});
+		bucket.approvedUnpaidCents += t.approvedUnpaidCents;
+		bucket.paidCents += t.paidCents;
+		bucket.manualAdjustmentCents += t.manualAdjustmentCents;
+		bucket.netPayableCents += t.netPayableCents;
+		for (const [role, amount] of Object.entries(t.byRoleType)) {
+			bucket.byRoleType[role] = (bucket.byRoleType[role] ?? 0) + amount;
+		}
+	}
+
+	return {
+		trainers,
+		totals: { ...totals, byRoleType: totalByRoleType },
+		totalsByCurrency,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -2374,14 +2451,16 @@ export async function exportLiabilityCsv(
 		return `"${value.replace(/"/g, '""')}"`;
 	}
 
+	// WS1: amounts are per-currency; a Currency column replaces the RM suffix.
 	const header = [
 		"Staff Member",
+		"Currency",
 		"Role",
 		"Track ID",
-		"Approved Unpaid (RM)",
-		"Paid (RM)",
-		"Manual Adj (RM)",
-		"Net Payable (RM)",
+		"Approved Unpaid",
+		"Paid",
+		"Manual Adj",
+		"Net Payable",
 	]
 		.map(csvCell)
 		.join(",");
@@ -2405,6 +2484,7 @@ export async function exportLiabilityCsv(
 
 		return [
 			csvCell(t.name),
+			csvCell(t.currency),
 			csvCell(dominantRole),
 			csvCell(trackIdLabel),
 			csvCell(centsToRmStr(t.approvedUnpaidCents)),
@@ -2414,19 +2494,24 @@ export async function exportLiabilityCsv(
 		].join(",");
 	});
 
-	const totalsRow = [
-		csvCell("TOTALS"),
-		csvCell(""),
-		csvCell(trackIdLabel),
-		csvCell(centsToRmStr(summary.totals.approvedUnpaidCents)),
-		csvCell(centsToRmStr(summary.totals.paidCents)),
-		csvCell(centsToRmStr(summary.totals.manualAdjustmentCents)),
-		csvCell(centsToRmStr(summary.totals.netPayableCents)),
-	].join(",");
+	// WS1: one TOTALS row per currency — never a co-mingled grand total.
+	const totalsRows = Object.entries(summary.totalsByCurrency).map(
+		([currency, ct]) =>
+			[
+				csvCell("TOTALS"),
+				csvCell(currency),
+				csvCell(""),
+				csvCell(trackIdLabel),
+				csvCell(centsToRmStr(ct.approvedUnpaidCents)),
+				csvCell(centsToRmStr(ct.paidCents)),
+				csvCell(centsToRmStr(ct.manualAdjustmentCents)),
+				csvCell(centsToRmStr(ct.netPayableCents)),
+			].join(","),
+	);
 
 	const allLines: string[] = [header, ...dataRows];
 	if (summary.trainers.length > 0) {
-		allLines.push(totalsRow);
+		allLines.push(...totalsRows);
 	}
 
 	return {
@@ -3413,7 +3498,11 @@ export async function resolveDispute(
 				status: requiresReview ? "pending_review" : "pending",
 				splitType: "manual",
 				manualNote: adjNote,
-				earnedAt: split.earnedAt,
+				// WS5: a dispute correction lands in the CURRENT open period, NOT
+				// the disputed split's original (possibly settled/locked) month —
+				// otherwise it would silently change an already-paid total. It is a
+				// signed adjustment against the open period (plan intent).
+				earnedAt: new Date(),
 				createdByUserId: params.actor.userId,
 			})
 			.returning();

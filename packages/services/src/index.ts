@@ -211,6 +211,8 @@ export {
 } from "./customer-profile.service";
 // Expense services
 export * from "./expenses.service";
+// Currency resolution (WS1 — multi-currency)
+export * from "./currency.service";
 // GHL staff sync services
 export {
 	type DispatchProfileSyncArgs,
@@ -584,6 +586,62 @@ export {
 	resolveTaxRate,
 } from "./tax.service";
 // #endregion
+
+// WS3 (MOVE parity) — opt-in gapless per-branch document numbering
+export {
+	type BranchDocType,
+	nextBranchDocNumber,
+} from "./numbering.service";
+
+// WS4 (MOVE parity) — appointment auto-complete (routes through updateAppointment)
+export {
+	type AutoCompleteResult,
+	autoCompleteOverdueAppointments,
+} from "./appointment-autocomplete.service";
+
+// WS6/WS7 (MOVE parity) — shared CSV codec (parse + serialize)
+export * from "./csv-codec";
+
+// WS7 (MOVE parity) — tenant CSV export catalogue
+export {
+	type ExportDatasetMeta,
+	type ExportScope,
+	type ExportedDataset,
+	exportAllDatasets,
+	exportDataset,
+	listExportDatasets,
+} from "./data-export";
+
+// WS6 (MOVE parity) — self-service CSV import
+export {
+	type CommitResult,
+	type ImportContext,
+	type ImportEntity,
+	type PreviewResult,
+	type RowResult,
+	commitImport,
+	importTemplate,
+	listImportEntities,
+	previewImport,
+} from "./data-import";
+
+// WS5 (MOVE parity) — payroll period lock + commission write-gate
+export {
+	type AutoLockResult,
+	type LockPeriodParams,
+	type PayrollPeriodRow,
+	type SplitBranchRef,
+	type UnlockPeriodParams,
+	assertPeriodOpen,
+	autoLockDuePeriods,
+	isPayrollPeriodLockedError,
+	isPeriodLocked,
+	listPayrollPeriods,
+	lockPayrollPeriod,
+	PayrollPeriodLockedError,
+	resolveSplitBranchId,
+	unlockPayrollPeriod,
+} from "./payroll-period.service";
 
 // #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
 export * from "./goods-receipt.service";

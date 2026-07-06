@@ -39,6 +39,10 @@ export const servicePrices = pgTable(
 		// NULL customerType = applies to all customer types
 		customerType: text("customer_type"),
 		priceCents: integer("price_cents").notNull(),
+		// WS1 (multi-currency): ISO currency for this price, stamped from the
+		// branch (or org default for NULL branchId) at write time. Nullable
+		// during rollout; readers fall back to the branch currency.
+		currency: text("currency"),
 		effectiveFrom: timestamp("effective_from", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

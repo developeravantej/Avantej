@@ -33,9 +33,19 @@ import { Skeleton } from "boneyard-js/react";
 /**
  * Row type from liabilitySummary.trainers — Phase 4: now includes byRoleType.
  */
+type LiabilityTotals = {
+	approvedUnpaidCents: number;
+	paidCents: number;
+	manualAdjustmentCents: number;
+	netPayableCents: number;
+	byRoleType: Record<string, number>;
+};
+
 type TrainerLiabilityRow = {
 	memberId: string;
 	name: string;
+	/** WS1: ISO currency of this trainer's earnings. */
+	currency: string;
 	approvedUnpaidCents: number;
 	paidCents: number;
 	manualAdjustmentCents: number;
@@ -46,13 +56,9 @@ type TrainerLiabilityRow = {
 
 type LiabilitySummaryOutput = {
 	trainers: TrainerLiabilityRow[];
-	totals: {
-		approvedUnpaidCents: number;
-		paidCents: number;
-		manualAdjustmentCents: number;
-		netPayableCents: number;
-		byRoleType: Record<string, number>;
-	};
+	totals: LiabilityTotals;
+	/** WS1: per-currency totals so multi-country grand totals never co-mingle. */
+	totalsByCurrency: Record<string, LiabilityTotals>;
 };
 
 // Role types as accepted by the backend filter
@@ -99,7 +105,13 @@ function roleTypeLabel(roleType: string): string {
 
 // ─── Role Breakdown Badge ─────────────────────────────────────────────────────
 
-function RoleBreakdown({ byRoleType }: { byRoleType: Record<string, number> }) {
+function RoleBreakdown({
+	byRoleType,
+	currency,
+}: {
+	byRoleType: Record<string, number>;
+	currency: string;
+}) {
 	const entries = Object.entries(byRoleType).filter(([, v]) => v > 0);
 	if (entries.length === 0)
 		return <span className="text-xs text-[#a3a3a3]">—</span>;
@@ -110,11 +122,11 @@ function RoleBreakdown({ byRoleType }: { byRoleType: Record<string, number> }) {
 				<span
 					key={role}
 					className="inline-flex items-center gap-1 rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#4a4f51]"
-					title={`${roleTypeLabel(role)}: ${formatPrice(cents, "MYR")}`}
+					title={`${roleTypeLabel(role)}: ${formatPrice(cents, currency)}`}
 				>
 					<span className="text-[#8a8f91]">{roleTypeLabel(role)}</span>
 					<span className="font-mono tabular-nums">
-						{formatPrice(cents, "MYR")}
+						{formatPrice(cents, currency)}
 					</span>
 				</span>
 			))}
@@ -275,6 +287,15 @@ export function LiabilityTab() {
 		byRoleType: {},
 	};
 
+	// WS1: per-currency totals. Falls back to the legacy single total (under its
+	// currency, or MYR) when the server hasn't populated the breakdown.
+	const totalsByCurrency = useMemo<Record<string, LiabilityTotals>>(() => {
+		const byCur = typedData?.totalsByCurrency;
+		if (byCur && Object.keys(byCur).length > 0) return byCur;
+		return { MYR: totals };
+	}, [typedData, totals]);
+	const currencyCount = Object.keys(totalsByCurrency).length;
+
 	// ── Helpers ───────────────────────────────────────────────────────────────
 
 	function toggleRow(memberId: string) {
@@ -404,14 +425,19 @@ export function LiabilityTab() {
 		{
 			id: "byRoleType",
 			header: "By Role",
-			cell: ({ row }) => <RoleBreakdown byRoleType={row.original.byRoleType} />,
+			cell: ({ row }) => (
+				<RoleBreakdown
+					byRoleType={row.original.byRoleType}
+					currency={row.original.currency}
+				/>
+			),
 		},
 		{
 			id: "approvedUnpaidCents",
 			header: "Approved (Unpaid)",
 			cell: ({ row }) => (
 				<span className="text-sm tabular-nums font-mono">
-					{formatPrice(row.original.approvedUnpaidCents, "MYR")}
+					{formatPrice(row.original.approvedUnpaidCents, row.original.currency)}
 				</span>
 			),
 		},
@@ -420,7 +446,7 @@ export function LiabilityTab() {
 			header: "Paid",
 			cell: ({ row }) => (
 				<span className="text-sm tabular-nums font-mono text-[#15803d]">
-					{formatPrice(row.original.paidCents, "MYR")}
+					{formatPrice(row.original.paidCents, row.original.currency)}
 				</span>
 			),
 		},
@@ -429,7 +455,10 @@ export function LiabilityTab() {
 			header: "Manual Adj.",
 			cell: ({ row }) => (
 				<span className="text-sm tabular-nums font-mono">
-					{formatPrice(row.original.manualAdjustmentCents, "MYR")}
+					{formatPrice(
+						row.original.manualAdjustmentCents,
+						row.original.currency,
+					)}
 				</span>
 			),
 		},
@@ -438,7 +467,7 @@ export function LiabilityTab() {
 			header: "Net Payable",
 			cell: ({ row }) => (
 				<span className="font-semibold text-sm tabular-nums font-mono">
-					{formatPrice(row.original.netPayableCents, "MYR")}
+					{formatPrice(row.original.netPayableCents, row.original.currency)}
 				</span>
 			),
 		},
@@ -476,11 +505,6 @@ export function LiabilityTab() {
 		);
 	}
 
-	// ── Totals byRoleType breakdown (for KPI band annotation) ────────────────
-	const roleTypeTotals = Object.entries(totals.byRoleType).filter(
-		([, v]) => v > 0,
-	);
-
 	// ── Render ────────────────────────────────────────────────────────────────
 	return (
 		<Skeleton
@@ -489,56 +513,79 @@ export function LiabilityTab() {
 			fallback={<PageLoader />}
 		>
 			<div className="px-6 pb-6">
-				{/* KPI band */}
-				<div className="mb-4 grid grid-cols-4 gap-4">
-					{[
-						{
-							label: "Approved (Unpaid)",
-							val: totals.approvedUnpaidCents,
-							color: "",
-						},
-						{ label: "Paid", val: totals.paidCents, color: "text-[#1d4ed8]" },
-						{
-							label: "Manual Adj.",
-							val: totals.manualAdjustmentCents,
-							color: "",
-						},
-						{ label: "Net Payable", val: totals.netPayableCents, color: "" },
-					].map((kpi) => (
-						<div
-							key={kpi.label}
-							className="rounded-2xl border border-[#e5e5e5] bg-white px-5 py-4"
-						>
-							<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-								{kpi.label}
+				{/* WS1: one KPI + role band per currency — multi-country totals never co-mingle. */}
+				{Object.entries(totalsByCurrency).map(([currency, ct]) => {
+					const roleTypeTotals = Object.entries(ct.byRoleType).filter(
+						([, v]) => v > 0,
+					);
+					return (
+						<div key={currency} className="mb-4">
+							{currencyCount > 1 && (
+								<div className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#737373]">
+									{currency}
+								</div>
+							)}
+							{/* KPI band */}
+							<div className="grid grid-cols-4 gap-4">
+								{[
+									{
+										label: "Approved (Unpaid)",
+										val: ct.approvedUnpaidCents,
+										color: "",
+									},
+									{
+										label: "Paid",
+										val: ct.paidCents,
+										color: "text-[#1d4ed8]",
+									},
+									{
+										label: "Manual Adj.",
+										val: ct.manualAdjustmentCents,
+										color: "",
+									},
+									{
+										label: "Net Payable",
+										val: ct.netPayableCents,
+										color: "",
+									},
+								].map((kpi) => (
+									<div
+										key={kpi.label}
+										className="rounded-2xl border border-[#e5e5e5] bg-white px-5 py-4"
+									>
+										<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											{kpi.label}
+										</div>
+										<div
+											className={`mt-1 font-mono text-2xl font-bold tabular-nums text-[#0a0a0a] ${kpi.color}`}
+										>
+											{formatPrice(kpi.val, currency)}
+										</div>
+									</div>
+								))}
 							</div>
-							<div
-								className={`mt-1 font-mono text-2xl font-bold tabular-nums text-[#0a0a0a] ${kpi.color}`}
-							>
-								{formatPrice(kpi.val, "MYR")}
-							</div>
-						</div>
-					))}
-				</div>
 
-				{/* Phase 4: byRoleType totals band — only shown when there is more than one role */}
-				{roleTypeTotals.length > 1 && (
-					<div className="mb-4 flex flex-wrap gap-2">
-						{roleTypeTotals.map(([role, cents]) => (
-							<div
-								key={role}
-								className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-4 py-2"
-							>
-								<span className="text-xs font-semibold text-[#737373]">
-									{roleTypeLabel(role)}
-								</span>
-								<span className="font-mono text-sm font-bold tabular-nums text-[#0a0a0a]">
-									{formatPrice(cents, "MYR")}
-								</span>
-							</div>
-						))}
-					</div>
-				)}
+							{/* byRoleType totals band — only shown when more than one role */}
+							{roleTypeTotals.length > 1 && (
+								<div className="mt-4 flex flex-wrap gap-2">
+									{roleTypeTotals.map(([role, cents]) => (
+										<div
+											key={role}
+											className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-4 py-2"
+										>
+											<span className="text-xs font-semibold text-[#737373]">
+												{roleTypeLabel(role)}
+											</span>
+											<span className="font-mono text-sm font-bold tabular-nums text-[#0a0a0a]">
+												{formatPrice(cents, currency)}
+											</span>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+					);
+				})}
 
 				{/* Main card */}
 				<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">

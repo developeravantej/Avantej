@@ -18,7 +18,25 @@ import { syncStaffToGhl } from "../src/services/ghl/sync-staff";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ORG = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 const BRANCH = "732f16af-5e0d-4add-9a0b-03aac652ddbd"; // Bukit Jalil
-function loadDevVars() { try { for (const l of readFileSync(join(__dirname,"../.dev.vars"),"utf-8").split("\n")){const t=l.trim();if(!t||t.startsWith("#"))continue;const e=t.indexOf("=");if(e<0)continue;const k=t.slice(0,e).trim();const v=t.slice(e+1).trim().replace(/^"(.*)"$/,"$1");if(!process.env[k])process.env[k]=v;} } catch {} }
+function loadDevVars() {
+	try {
+		for (const l of readFileSync(
+			join(__dirname, "../.dev.vars"),
+			"utf-8",
+		).split("\n")) {
+			const t = l.trim();
+			if (!t || t.startsWith("#")) continue;
+			const e = t.indexOf("=");
+			if (e < 0) continue;
+			const k = t.slice(0, e).trim();
+			const v = t
+				.slice(e + 1)
+				.trim()
+				.replace(/^"(.*)"$/, "$1");
+			if (!process.env[k]) process.env[k] = v;
+		}
+	} catch {}
+}
 
 async function main() {
 	loadDevVars();
@@ -58,14 +76,31 @@ async function main() {
 		const got = await ghlFetch<{ id?: string; email?: string; name?: string }>({
 			method: "GET",
 			path: `/users/${ghlUserId}`,
-			apiKey: decrypt((await cp.query.organizations.findFirst({ where: (o, { eq: e }) => e(o.id, ORG) }))!.ghlApiKeyEncrypted!),
+			apiKey: decrypt(
+				(await cp.query.organizations.findFirst({
+					where: (o, { eq: e }) => e(o.id, ORG),
+				}))!.ghlApiKeyEncrypted!,
+			),
 		}).catch((e) => ({ err: String(e) }) as never);
 		console.log("  GHL user:", JSON.stringify(got).slice(0, 200));
 
 		console.log("▶ cleanup: delete mock GHL user + link …");
-		await ghlFetch({ method: "DELETE", path: `/users/${ghlUserId}`, apiKey: decrypt((await cp.query.organizations.findFirst({ where: (o, { eq: e }) => e(o.id, ORG) }))!.ghlApiKeyEncrypted!) }).catch(() => {});
+		await ghlFetch({
+			method: "DELETE",
+			path: `/users/${ghlUserId}`,
+			apiKey: decrypt(
+				(await cp.query.organizations.findFirst({
+					where: (o, { eq: e }) => e(o.id, ORG),
+				}))!.ghlApiKeyEncrypted!,
+			),
+		}).catch(() => {});
 	}
 	await tdb.delete(ghlUserLinks).where(eq(ghlUserLinks.userId, mockUserId));
 	console.log("  cleaned mock user", mockUserId);
 }
-main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+main()
+	.then(() => process.exit(0))
+	.catch((e) => {
+		console.error(e);
+		process.exit(1);
+	});

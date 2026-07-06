@@ -22,11 +22,16 @@
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",
 		"CORS_ORIGIN": "https://avantej-core-web.zhiyuantech.workers.dev",
 		"BETTER_AUTH_URL": "https://avantej-core-server.zhiyuantech.workers.dev",
+		// Default sender when EMAIL_PROVIDER=cloudflare (domain onboarded on the account).
+		"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com",
 		"WEB_APP_URL": "https://avantej-core-web.zhiyuantech.workers.dev",
 		"FRONTEND_URL": "https://avantej-core-web.zhiyuantech.workers.dev"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},
+	// Cloudflare Email Sending binding (env.EMAIL) — used only when
+	// EMAIL_PROVIDER=cloudflare; default provider stays Resend.
+	"send_email": [{ "name": "EMAIL" }],
 	// For sensitive data, use:
 	// wrangler secret put SECRET_NAME
 	// Don't add secrets to "vars" - they're visible in the dashboard!
@@ -52,5 +57,48 @@
 			"*/15 * * * *",
 			"0 4 * * *"
 		]
+	},
+	// Named "prod" environment = the MOVE production worker (separate from the
+	// top-level dev worker). Named envs do NOT inherit vars/bindings/triggers —
+	// re-declared here. Deploy with: wrangler deploy --env prod
+	"env": {
+		"prod": {
+			"name": "avantej-core-server-prod",
+			"vars": {
+				"NODE_ENV": "production",
+				"INSTALLMENTS_LOCK_ON_OPEN": "true",
+				// Per-tenant subdomains are reflected dynamically by getAllowedOrigin()
+				// (any https://*.avantej.com). CORS_ORIGIN here is the canonical fallback
+				// + outbound-link base (emails/invites). BETTER_AUTH_URL is the FIXED API
+				// host that issues the shared .avantej.com session cookie.
+				"CORS_ORIGIN": "https://app.avantej.com",
+				"BETTER_AUTH_URL": "https://api.avantej.com",
+				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com",
+				// Web app base for server-built browser redirects (Stripe Connect return,
+				// subscription/payment-link return_url) + email links (invites, claim,
+				// reset). Unset → falls back to http://localhost:3001, which breaks these
+				// on prod. Both point at the prod web app.
+				"WEB_APP_URL": "https://app.avantej.com",
+				"FRONTEND_URL": "https://app.avantej.com"
+			},
+			"r2_buckets": [
+				{
+					"binding": "PROOFS_BUCKET",
+					"bucket_name": "avantej-payment-proofs"
+				}
+			],
+			"send_email": [{ "name": "EMAIL" }],
+			"triggers": {
+				"crons": [
+					"0 * * * *",
+					"0 1 * * *",
+					"0 2 * * *",
+					"0 3 * * *",
+					"0 9 * * *",
+					"*/15 * * * *",
+					"0 4 * * *"
+				]
+			}
+		}
 	}
 }

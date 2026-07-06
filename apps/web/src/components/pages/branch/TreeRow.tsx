@@ -72,7 +72,7 @@ export function TreeRow({
 	if (isBranch) {
 		const revenue =
 			node.monthRevenueCents != null
-				? formatPrice(node.monthRevenueCents, "MYR")
+				? formatPrice(node.monthRevenueCents, node.currency ?? "MYR")
 				: null;
 		const members =
 			node.membersCount != null ? `${node.membersCount} members` : null;

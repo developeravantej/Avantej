@@ -110,6 +110,8 @@ export interface RefundRowEnriched extends Refund {
 	reviewedByName: string | null;
 	processedByName: string | null;
 	salesOrderNumber: string | null;
+	/** From the joined sales order: "member" | "walk_in" | null when no order. */
+	customerType: string | null;
 }
 
 export interface ListRefundsParams {
@@ -1209,8 +1211,9 @@ export async function listRefunds(
 				metadata: refunds.metadata,
 				createdAt: refunds.createdAt,
 				updatedAt: refunds.updatedAt,
-				// Joined column
+				// Joined columns
 				salesOrderNumber: salesOrders.salesOrderNumber,
+				customerType: salesOrders.customerType,
 			})
 			.from(refunds)
 			.leftJoin(salesOrders, eq(refunds.salesOrderId, salesOrders.id))
@@ -1256,6 +1259,7 @@ export async function listRefunds(
 			? (nameMap.get(row.processedBy) ?? null)
 			: null,
 		salesOrderNumber: row.salesOrderNumber ?? null,
+		customerType: row.customerType ?? null,
 	}));
 
 	return { rows: enriched, total };

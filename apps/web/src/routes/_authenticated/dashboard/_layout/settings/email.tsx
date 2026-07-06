@@ -65,7 +65,11 @@ export const Route = createFileRoute(
 type EmailDomainRow = {
 	id: string;
 	organizationId: string;
-	resendDomainId: string;
+	provider: string;
+	resendDomainId: string | null;
+	cfZoneId: string | null;
+	cfSubdomainId: string | null;
+	onboardingTier: string | null;
 	domain: string;
 	fromName: string;
 	defaultLocalPart: string | null;
@@ -88,7 +92,9 @@ type DnsRecord = {
 
 const LOCAL_PART_REGEX = /^[a-z0-9._-]{1,64}$/i;
 
-function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+function statusBadgeVariant(
+	status: string,
+): "default" | "secondary" | "destructive" | "outline" {
 	switch (status) {
 		case "verified":
 			return "default";
@@ -139,7 +145,10 @@ function EmailSettingsPage() {
 					userEmail={userContext?.user?.email ?? ""}
 				/>
 				<CreateDomainCard organizationId={organizationId} isAdmin={isAdmin} />
-				<NotificationRoutingCard organizationId={organizationId} isAdmin={isAdmin} />
+				<NotificationRoutingCard
+					organizationId={organizationId}
+					isAdmin={isAdmin}
+				/>
 			</div>
 		</div>
 	);
@@ -150,13 +159,30 @@ const DOMAINS_QUERY_KEY_PREFIX = "emailDomains" as const;
 const NOTIFICATION_ROUTES_QUERY_KEY_PREFIX = "emailNotificationRoutes" as const;
 
 const NOTIFICATION_TYPE_META: Array<{
-	type: "member_invitation" | "payment_receipt" | "auth_verification" | "auth_password_reset" | "auth_magic_link";
+	type:
+		| "member_invitation"
+		| "payment_receipt"
+		| "auth_verification"
+		| "auth_password_reset"
+		| "auth_magic_link";
 	label: string;
 	tokens: string[];
 }> = [
-	{ type: "member_invitation", label: "Member invitation", tokens: ["organizationName", "role", "inviterName"] },
-	{ type: "payment_receipt", label: "Payment receipt", tokens: ["amount", "appointmentId"] },
-	{ type: "auth_verification", label: "Email verification", tokens: ["appName"] },
+	{
+		type: "member_invitation",
+		label: "Member invitation",
+		tokens: ["organizationName", "role", "inviterName"],
+	},
+	{
+		type: "payment_receipt",
+		label: "Payment receipt",
+		tokens: ["amount", "appointmentId"],
+	},
+	{
+		type: "auth_verification",
+		label: "Email verification",
+		tokens: ["appName"],
+	},
 	{ type: "auth_password_reset", label: "Password reset", tokens: ["appName"] },
 	{ type: "auth_magic_link", label: "Magic-link sign-in", tokens: ["appName"] },
 ];
@@ -190,7 +216,10 @@ function DomainListCard({
 				? "Domain verified."
 				: "Verification re-checked.",
 		errorMessage: (err) => err.message || "Verification failed.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	const deleteMutation = useApiMutation({
@@ -198,7 +227,10 @@ function DomainListCard({
 			client.emailDomains.delete({ id, organizationId }),
 		successMessage: "Sending domain removed.",
 		errorMessage: (err) => err.message || "Failed to delete domain.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	return (
@@ -206,9 +238,9 @@ function DomainListCard({
 			<CardHeader>
 				<CardTitle>Sending domains</CardTitle>
 				<CardDescription>
-					Each domain needs SPF, DKIM, and DMARC DNS records to be added at
-					your DNS provider. Until status is <strong>verified</strong>, email
-					falls back to the platform sender.
+					Each domain needs SPF, DKIM, and DMARC DNS records to be added at your
+					DNS provider. Until status is <strong>verified</strong>, email falls
+					back to the platform sender.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -253,9 +285,7 @@ function DomainListCard({
 													variant="outline"
 													size="sm"
 													onClick={() =>
-														setExpandedId(
-															expandedId === row.id ? null : row.id,
-														)
+														setExpandedId(expandedId === row.id ? null : row.id)
 													}
 												>
 													{expandedId === row.id ? "Hide DNS" : "DNS records"}
@@ -412,9 +442,9 @@ function SendTestDialog({
 				<DialogHeader>
 					<DialogTitle>Send test email — {row.domain}</DialogTitle>
 					<DialogDescription>
-						Sends a small confirmation email through this verified domain so
-						you can prove the DNS records + Resend delivery path are working
-						before wiring real flows.
+						Sends a small confirmation email through this verified domain so you
+						can prove the DNS records + Resend delivery path are working before
+						wiring real flows.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -549,7 +579,9 @@ function DnsRecordsList({ records }: { records: unknown }) {
  */
 function DmarcProgression({ records }: { records: DnsRecord[] }) {
 	const current = parseDmarcPolicy(records);
-	const currentIdx = current ? DMARC_STEPS.findIndex((s) => s.policy === current) : -1;
+	const currentIdx = current
+		? DMARC_STEPS.findIndex((s) => s.policy === current)
+		: -1;
 	const next =
 		currentIdx >= 0 && currentIdx < DMARC_STEPS.length - 1
 			? DMARC_STEPS[currentIdx + 1]
@@ -560,9 +592,10 @@ function DmarcProgression({ records }: { records: DnsRecord[] }) {
 			<p className="text-sm font-medium">DMARC policy</p>
 			{current === null ? (
 				<p className="text-sm text-muted-foreground">
-					No DMARC policy detected. Add the <span className="font-mono">_dmarc</span> TXT
-					record above (starting at <span className="font-mono">p=none</span>) to begin
-					monitoring, then harden over time.
+					No DMARC policy detected. Add the{" "}
+					<span className="font-mono">_dmarc</span> TXT record above (starting
+					at <span className="font-mono">p=none</span>) to begin monitoring,
+					then harden over time.
 				</p>
 			) : (
 				<>
@@ -611,9 +644,7 @@ type AliasRow = {
 const ALIASES_QUERY_KEY_PREFIX = "emailDomainAliases" as const;
 
 const aliasAddSchema = z.object({
-	localPart: z
-		.string()
-		.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
+	localPart: z.string().regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
 	label: z.string().max(100).or(z.literal("")),
 });
 
@@ -685,9 +716,12 @@ function AliasesPanel({
 			<div>
 				<p className="text-sm font-medium">Sending-address aliases</p>
 				<p className="text-xs text-muted-foreground">
-					Curated local-parts code paths can pick by label. The default
-					(when no alias is selected) is{" "}
-					<code className="font-mono">{fallback}@{domain}</code>.
+					Curated local-parts code paths can pick by label. The default (when no
+					alias is selected) is{" "}
+					<code className="font-mono">
+						{fallback}@{domain}
+					</code>
+					.
 				</p>
 			</div>
 			{isLoading ? (
@@ -826,7 +860,10 @@ function EditSenderDialog({
 	onClose: () => void;
 }) {
 	const updateMutation = useApiMutation({
-		mutationFn: (values: { fromName: string; defaultLocalPart: string | null }) =>
+		mutationFn: (values: {
+			fromName: string;
+			defaultLocalPart: string | null;
+		}) =>
 			client.emailDomains.update({
 				id: row.id,
 				organizationId,
@@ -992,7 +1029,10 @@ function CreateDomainCard({
 			}),
 		successMessage: "Domain registered. Add the DNS records and verify.",
 		errorMessage: (err) => err.message || "Failed to register domain.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	const form = useForm({
@@ -1002,7 +1042,8 @@ function CreateDomainCard({
 			await createMutation.mutateAsync({
 				domain: value.domain.trim().toLowerCase(),
 				fromName: value.fromName.trim(),
-				defaultLocalPart: trimmedLocal === "" ? undefined : trimmedLocal.toLowerCase(),
+				defaultLocalPart:
+					trimmedLocal === "" ? undefined : trimmedLocal.toLowerCase(),
 			});
 			form.reset();
 		},
@@ -1014,8 +1055,11 @@ function CreateDomainCard({
 			<CardHeader>
 				<CardTitle>Add a sending domain</CardTitle>
 				<CardDescription>
-					Use a dedicated subdomain (e.g. <code>mail.example.com</code>) so
-					your main domain's reputation stays isolated.
+					Enter the domain you'll send from — your main domain (e.g.{" "}
+					<code>yourgym.com</code> → sends as <code>name@yourgym.com</code>)
+					works, and so does a subdomain (e.g. <code>mail.yourgym.com</code>) if
+					you'd rather keep sending reputation isolated from your corporate
+					email.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -1039,7 +1083,7 @@ function CreateDomainCard({
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
-									placeholder="mail.example.com"
+									placeholder="yourgym.com"
 									disabled={!isAdmin || createMutation.isPending}
 								/>
 								{field.state.meta.errors[0] ? (
@@ -1136,7 +1180,8 @@ function NotificationRoutingCard({
 }) {
 	const { data, isLoading, isError } = useQuery({
 		queryKey: [NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
-		queryFn: () => client.emailDomains.getNotificationRouting({ organizationId }),
+		queryFn: () =>
+			client.emailDomains.getNotificationRouting({ organizationId }),
 		staleTime: 30_000,
 	});
 
@@ -1145,8 +1190,8 @@ function NotificationRoutingCard({
 			<CardHeader>
 				<CardTitle>Notification routing</CardTitle>
 				<CardDescription>
-					Choose which sending address, name, and subject each notification uses.
-					Unset rows fall back to your domain's default sender.
+					Choose which sending address, name, and subject each notification
+					uses. Unset rows fall back to your domain's default sender.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -1163,7 +1208,10 @@ function NotificationRoutingCard({
 							meta={meta}
 							organizationId={organizationId}
 							isAdmin={isAdmin}
-							route={data?.routes.find((r) => r.notificationType === meta.type) ?? null}
+							route={
+								data?.routes.find((r) => r.notificationType === meta.type) ??
+								null
+							}
 							aliases={data?.aliases ?? []}
 							verifiedDomain={data?.verifiedDomain ?? null}
 						/>
@@ -1185,9 +1233,17 @@ function NotificationRoutingRow({
 	meta: (typeof NOTIFICATION_TYPE_META)[number];
 	organizationId: string;
 	isAdmin: boolean;
-	route: { aliasId: string | null; fromNameOverride: string | null; subjectOverride: string | null } | null;
+	route: {
+		aliasId: string | null;
+		fromNameOverride: string | null;
+		subjectOverride: string | null;
+	} | null;
 	aliases: Array<{ id: string; localPart: string; label: string | null }>;
-	verifiedDomain: { domain: string; fromName: string; defaultLocalPart: string | null } | null;
+	verifiedDomain: {
+		domain: string;
+		fromName: string;
+		defaultLocalPart: string | null;
+	} | null;
 }) {
 	const saveMutation = useApiMutation({
 		mutationFn: (vars: {
@@ -1207,7 +1263,10 @@ function NotificationRoutingRow({
 
 	const resetMutation = useApiMutation({
 		mutationFn: () =>
-			client.emailDomains.deleteNotificationRoute({ organizationId, notificationType: meta.type }),
+			client.emailDomains.deleteNotificationRoute({
+				organizationId,
+				notificationType: meta.type,
+			}),
 		successMessage: "Routing reset.",
 		errorMessage: (err: Error) => err.message || "Failed to reset routing.",
 		invalidate: [[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId]],
@@ -1246,14 +1305,18 @@ function NotificationRoutingRow({
 						<div className="w-full sm:w-44">
 							<Select
 								value={field.state.value || "__default__"}
-								onValueChange={(v) => field.handleChange(v === "__default__" ? "" : v)}
+								onValueChange={(v) =>
+									field.handleChange(v === "__default__" ? "" : v)
+								}
 								disabled={!isAdmin || !verifiedDomain}
 							>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Default sender" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="__default__">Use domain default</SelectItem>
+									<SelectItem value="__default__">
+										Use domain default
+									</SelectItem>
 									{aliases.map((a) => (
 										<SelectItem key={a.id} value={a.id}>
 											{a.localPart}
@@ -1314,13 +1377,20 @@ function NotificationRoutingRow({
 				{(values) => {
 					const selectedAlias = aliases.find((a) => a.id === values.aliasId);
 					const effectiveLocalPart =
-						selectedAlias?.localPart ?? verifiedDomain?.defaultLocalPart ?? "support";
+						selectedAlias?.localPart ??
+						verifiedDomain?.defaultLocalPart ??
+						"support";
 					const effectiveFromName =
-						values.fromNameOverride.trim() || verifiedDomain?.fromName || "Avantej Core";
+						values.fromNameOverride.trim() ||
+						verifiedDomain?.fromName ||
+						"Avantej Core";
 					return (
 						<p className="break-all font-mono text-xs text-muted-foreground">
-							Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@{previewDomain}&gt;
-							{!selectedAlias && verifiedDomain ? " (falls back to default sender)" : ""}
+							Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@
+							{previewDomain}&gt;
+							{!selectedAlias && verifiedDomain
+								? " (falls back to default sender)"
+								: ""}
 						</p>
 					);
 				}}

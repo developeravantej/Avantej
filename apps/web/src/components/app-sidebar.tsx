@@ -16,10 +16,12 @@ import {
 	ClipboardCheck,
 	CreditCard,
 	Database,
+	Download,
 	FileChartColumnIncreasing,
 	Grid3x3,
 	Home,
 	LayoutDashboard,
+	Lock,
 	LogOut,
 	Mail,
 	Map,
@@ -38,6 +40,7 @@ import {
 	Store,
 	Tag,
 	TrendingUp,
+	Upload,
 	User,
 	UserPlus,
 	Users,
@@ -157,6 +160,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Finance",
 		items: [
+			// Stripe Connect onboarding (per-country). Prerequisite for card/online
+			// payments + payouts, so it leads the Finance group. Admin-gated via
+			// payments:read (the staff role lacks it).
+			{
+				title: "Payment Setup",
+				url: "/billing/connect",
+				icon: CreditCard,
+				permission: "payments:read",
+			},
 			{
 				title: "Sales & Payments",
 				url: "/dashboard/sales/view",
@@ -181,6 +193,13 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Payouts",
 				url: "/dashboard/commissions/view?tab=payouts",
 				icon: BadgeDollarSign,
+				permission: "commission_payout:read",
+			},
+			// WS5: per-branch commission-window lock/unlock grid
+			{
+				title: "Payroll Periods",
+				url: "/dashboard/payroll-periods/view",
+				icon: Lock,
 				permission: "commission_payout:read",
 			},
 		],
@@ -232,6 +251,18 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Org Settings",
 				url: "/dashboard/settings/organization",
 				icon: Building2,
+			},
+			{
+				title: "Import Data",
+				url: "/dashboard/settings/import",
+				icon: Upload,
+				permission: "data_import:import",
+			},
+			{
+				title: "Export Data",
+				url: "/dashboard/settings/export",
+				icon: Download,
+				permission: "reports:export",
 			},
 			{
 				title: "Google Calendar",
@@ -652,12 +683,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarTrigger className="pr-2" />
 				</div>
 
-				{/* Org switcher pill */}
+				{/* Org identity card — static: tenant members belong to exactly one
+				    org, so a switcher affordance (button/hover/chevron) would lie. */}
 				{currentOrg && (
-					<button
-						type="button"
+					<div
 						className={cn(
-							"mx-2 mt-1 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-left transition hover:bg-[#333]",
+							"mx-2 mt-1 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-left",
 							"group-data-[collapsible=icon]:hidden",
 						)}
 					>
@@ -674,8 +705,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 									: currentOrg.role}
 							</div>
 						</div>
-						<ChevronRight className="size-3 shrink-0 text-sidebar-foreground/55" />
-					</button>
+					</div>
 				)}
 
 				{/* Power Search with ⌘K hint */}

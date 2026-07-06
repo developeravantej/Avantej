@@ -23,6 +23,8 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
+	buildCsv,
+	csvRow,
 	getDashboardKpis,
 	getDescendantNodeIds,
 	listDueScheduledReports,
@@ -327,7 +329,7 @@ async function buildReportAttachment(args: {
 	const filenameBase = `${slug}-${windowKey}-${date}`;
 
 	if (format === "csv") {
-		const csv = buildCsv({ orgName, windowKey, kpis });
+		const csv = buildScheduledReportCsv({ orgName, windowKey, kpis });
 		const content = btoa(unescape(encodeURIComponent(csv)));
 		return [{ filename: `${filenameBase}.csv`, content }];
 	}
@@ -388,35 +390,50 @@ async function buildReportAttachment(args: {
 	}
 }
 
-function buildCsv(args: {
+function buildScheduledReportCsv(args: {
 	orgName: string;
 	windowKey: string;
 	kpis: DashboardKpis;
 }): string {
 	const { orgName, windowKey, kpis } = args;
 	const periodLabel = `${new Date(kpis.from).toLocaleDateString("en-MY")} – ${new Date(kpis.to).toLocaleDateString("en-MY")}`;
+	// Shared codec: the '#'-preamble lines are each escaped as one cell (so a
+	// comma/quote in orgName can't corrupt the column count), and branch names
+	// are properly quoted instead of the old lossy comma→semicolon rewrite.
 	const lines: string[] = [];
-	lines.push(`# ${orgName} — Performance Report`);
-	lines.push(`# Window: ${windowKey}`);
-	lines.push(`# Period: ${periodLabel}`);
-	lines.push("");
-	lines.push("Metric,Value");
-	lines.push(`Total Revenue (RM),${(kpis.totalSales / 100).toFixed(2)}`);
 	lines.push(
-		`Prev Period Revenue (RM),${(kpis.previousPeriodSales / 100).toFixed(2)}`,
+		buildCsv(
+			["Metric", "Value"],
+			[
+				["Total Revenue (RM)", (kpis.totalSales / 100).toFixed(2)],
+				[
+					"Prev Period Revenue (RM)",
+					(kpis.previousPeriodSales / 100).toFixed(2),
+				],
+				["Active Members", kpis.activeMembersCount],
+				["Completed Appointments", kpis.completedAppointments],
+				["Total Appointments", kpis.totalAppointments],
+			],
+			{
+				preamble: [
+					`# ${orgName} — Performance Report`,
+					`# Window: ${windowKey}`,
+					`# Period: ${periodLabel}`,
+					"",
+				],
+			},
+		),
 	);
-	lines.push(`Active Members,${kpis.activeMembersCount}`);
-	lines.push(`Completed Appointments,${kpis.completedAppointments}`);
-	lines.push(`Total Appointments,${kpis.totalAppointments}`);
 	if (kpis.revenueByBranch.length > 0) {
+		const branchRows = [...kpis.revenueByBranch]
+			.sort((a, z) => z.totalRevenue - a.totalRevenue)
+			.map((b) => [
+				b.branchName ?? "Unknown",
+				(b.totalRevenue / 100).toFixed(2),
+			]);
 		lines.push("");
-		lines.push("Branch,Revenue (RM)");
-		for (const b of [...kpis.revenueByBranch].sort(
-			(a, z) => z.totalRevenue - a.totalRevenue,
-		)) {
-			const branch = (b.branchName ?? "Unknown").replace(/,/g, ";");
-			lines.push(`${branch},${(b.totalRevenue / 100).toFixed(2)}`);
-		}
+		lines.push(csvRow(["Branch", "Revenue (RM)"]));
+		for (const row of branchRows) lines.push(csvRow(row));
 	}
 	return lines.join("\n");
 }

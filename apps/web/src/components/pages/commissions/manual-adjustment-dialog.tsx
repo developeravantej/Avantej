@@ -168,8 +168,9 @@ export function ManualAdjustmentDialog({
 						New Manual Adjustment
 					</DialogTitle>
 					<DialogDescription className="text-sm text-[#737373]">
-						Create a manual commission adjustment. It will be added to the
-						Review tab as pending until approved.
+						Create a manual commission adjustment. It is added as a pending
+						split ready for approval — or routed to the Review tab first if your
+						role requires review.
 					</DialogDescription>
 				</DialogHeader>
 

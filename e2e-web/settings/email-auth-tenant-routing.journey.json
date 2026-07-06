@@ -1,19 +1,32 @@
 {
-	"title": "Auth: magic-link sign-in dispatches through tenant-aware sender",
-	"module": "settings",
-	"prodMutationClass": "trigger-real-resend-send",
-	"journey": [
-		"Pre-seed a status='verified' email_domains row (e2e-verified.example.com) for the franchisee's org so the tenant route exists",
-		"Logged out, open /sign-in-link — the 'Sign in by email' magic-link form renders",
-		"Type franchisee@gmail.com into the Email field",
-		"Click 'Send sign-in link' — POST /api/auth/sign-in/magic-link fires",
-		"Observe the result toast surface in the notifications region ('Failed to send sign-in link' — see verification note on why this is the expected sandbox outcome)"
-	],
-	"steps": [
-		{ "do": "navigate", "url": "/sign-in-link" },
-		{ "do": "fill", "target": "textbox 'Email'", "value": "franchisee@gmail.com" },
-		{ "do": "click", "target": "button 'Send sign-in link'" },
-		{ "do": "wait_for", "text": "Failed to send sign-in link" }
-	],
-	"verification": "Server-side routing is the actual assertion and is captured in e2e-web/videos/test-5-server-log-proof.txt: the stack shows Object.sendMagicLink -> dispatchAuthEmail (better-auth.ts:173) -> sendTenantEmail (email-send-tenant.ts:178) running FIRST (tenant route), then on Resend rejection dispatchAuthEmail (better-auth.ts:196) -> sendMagicLinkEmail (email.ts:595) running SECOND (platform fallback). Both legs fire in order. The end Resend rejection (and thus the 'Failed to send sign-in link' UI toast) is a Resend sandbox limit — sandbox only delivers to the account owner and won't send from an un-DNS-verified domain — not a routing bug. The green-success leg needs a real DNS-verified domain and is deferred."
+  "title": "Auth: magic-link sign-in dispatches through tenant-aware sender",
+  "module": "settings",
+  "prodMutationClass": "trigger-real-resend-send",
+  "journey": [
+    "Pre-seed a status='verified' email_domains row (e2e-verified.example.com) for the franchisee's org so the tenant route exists",
+    "Logged out, open /sign-in-link \u2014 the 'Sign in by email' magic-link form renders",
+    "Type admin@moveprivatefitness.com into the Email field",
+    "Click 'Send sign-in link' \u2014 POST /api/auth/sign-in/magic-link fires",
+    "Observe the result toast surface in the notifications region ('Failed to send sign-in link' \u2014 see verification note on why this is the expected sandbox outcome)"
+  ],
+  "steps": [
+    {
+      "do": "navigate",
+      "url": "/sign-in-link"
+    },
+    {
+      "do": "fill",
+      "target": "textbox 'Email'",
+      "value": "franchisee@gmail.com"
+    },
+    {
+      "do": "click",
+      "target": "button 'Send sign-in link'"
+    },
+    {
+      "do": "wait_for",
+      "text": "Failed to send sign-in link"
+    }
+  ],
+  "verification": "Server-side routing is the actual assertion and is captured in e2e-web/videos/test-5-server-log-proof.txt: the stack shows Object.sendMagicLink -> dispatchAuthEmail (better-auth.ts:173) -> sendTenantEmail (email-send-tenant.ts:178) running FIRST (tenant route), then on Resend rejection dispatchAuthEmail (better-auth.ts:196) -> sendMagicLinkEmail (email.ts:595) running SECOND (platform fallback). Both legs fire in order. The end Resend rejection (and thus the 'Failed to send sign-in link' UI toast) is a Resend sandbox limit \u2014 sandbox only delivers to the account owner and won't send from an un-DNS-verified domain \u2014 not a routing bug. The green-success leg needs a real DNS-verified domain and is deferred."
 }

@@ -12,7 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { centsToRm, rmToCents } from "@/lib/money";
+import { centsToRm, formatPrice, rmToCents } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import type { CartItem, LineItemType, SelectedCustomer } from "./types";
 
@@ -145,7 +145,11 @@ function ItemRow({
 							) : (
 								services.map((svc) => (
 									<SelectItem key={svc.id} value={svc.id}>
-										{svc.name}
+										{/* Price qualifier — several services share a name and
+										    differ only by price tier. */}
+										{svc.price != null
+											? `${svc.name} — ${formatPrice(svc.price, "MYR")}`
+											: svc.name}
 									</SelectItem>
 								))
 							)}

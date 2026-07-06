@@ -5189,6 +5189,221 @@ CREATE INDEX IF NOT EXISTS "ghl_pending_contacts_status_idx"
 CREATE INDEX IF NOT EXISTS "ghl_pending_contacts_branch_idx"
 	ON "ghl_pending_contacts" ("resolved_branch_node_id");
 ` },
+	{ hash: "0097_money_currency", sql: `-- 0097_money_currency (WS1 — multi-currency correctness)
+--
+-- Adds a currency dimension so multi-country tenants (e.g. MY/TH/SG) get
+-- correct per-currency money instead of co-mingled MYR-assumed totals.
+--
+-- branch_details.currency is the SOURCE OF TRUTH, seeded here from the branch's
+-- country node name. commission_splits.currency and service_prices.currency are
+-- new columns stamped from the branch at write time; they are left NULLABLE in
+-- this migration. Backfill of historical transactional rows + NOT NULL
+-- enforcement is a deliberate follow-up (once the country->currency mapping is
+-- validated on a live tenant), so this migration never rewrites money rows.
+--
+-- Deliberately NOT touched here: payments.currency / payouts.currency (default
+-- 'usd'). Those may be real Stripe charge currencies; correcting them requires
+-- domain confirmation and is out of scope for this migration.
+--
+-- Idempotent — safe to re-run on a partially-migrated tenant branch.
+
+ALTER TABLE "branch_details"    ADD COLUMN IF NOT EXISTS "currency" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "currency" text;
+ALTER TABLE "service_prices"    ADD COLUMN IF NOT EXISTS "currency" text;
+
+-- Seed branch_details.currency from the branch's country node name.
+-- (branch_details is config, not transactional money — safe to backfill.)
+-- Only fills rows still NULL, so re-runs never clobber a set value.
+UPDATE "branch_details" AS bd
+SET "currency" = CASE lower(trim(cn."name"))
+		WHEN 'malaysia'    THEN 'MYR'
+		WHEN 'thailand'    THEN 'THB'
+		WHEN 'singapore'   THEN 'SGD'
+		WHEN 'indonesia'   THEN 'IDR'
+		WHEN 'philippines' THEN 'PHP'
+		WHEN 'vietnam'     THEN 'VND'
+		ELSE 'MYR'
+	END
+FROM "hierarchy_nodes" AS bn
+JOIN "hierarchy_nodes" AS cn ON cn."id" = bn."country_node_id"
+WHERE bd."node_id" = bn."id"
+	AND bd."currency" IS NULL;
+
+-- Backfill commission_splits.currency (NEW column — never had a value, so this
+-- annotates rather than rewrites money). Derive the split's branch from its
+-- source: appointment.branch_id, sales_order.branch_id, or
+-- package_instance -> sales_order.branch_id. Then branch -> country -> currency.
+UPDATE "commission_splits" AS cs
+SET "currency" = CASE lower(trim(cn."name"))
+		WHEN 'malaysia'    THEN 'MYR'
+		WHEN 'thailand'    THEN 'THB'
+		WHEN 'singapore'   THEN 'SGD'
+		WHEN 'indonesia'   THEN 'IDR'
+		WHEN 'philippines' THEN 'PHP'
+		WHEN 'vietnam'     THEN 'VND'
+		ELSE 'MYR'
+	END
+FROM (
+	SELECT s."id" AS split_id,
+		COALESCE(a."branch_id", so."branch_id", so2."branch_id") AS branch_id
+	FROM "commission_splits" s
+	LEFT JOIN "appointments"      a   ON a."id"   = s."appointment_id"
+	LEFT JOIN "sales_orders"      so  ON so."id"  = s."sales_order_id"
+	LEFT JOIN "package_instances" pi  ON pi."id"  = s."package_instance_id"
+	LEFT JOIN "sales_orders"      so2 ON so2."id" = pi."sales_order_id"
+) AS src
+JOIN "hierarchy_nodes" AS bn ON bn."id" = src."branch_id"
+JOIN "hierarchy_nodes" AS cn ON cn."id" = bn."country_node_id"
+WHERE cs."id" = src."split_id"
+	AND cs."currency" IS NULL
+	AND src."branch_id" IS NOT NULL;
+
+-- Backfill service_prices.currency (NEW column). Branch-scoped rows from the
+-- branch's country; org-wide (NULL branch_id) rows fall back to the default.
+UPDATE "service_prices" AS sp
+SET "currency" = CASE lower(trim(cn."name"))
+		WHEN 'malaysia'    THEN 'MYR'
+		WHEN 'thailand'    THEN 'THB'
+		WHEN 'singapore'   THEN 'SGD'
+		WHEN 'indonesia'   THEN 'IDR'
+		WHEN 'philippines' THEN 'PHP'
+		WHEN 'vietnam'     THEN 'VND'
+		ELSE 'MYR'
+	END
+FROM "hierarchy_nodes" AS bn
+JOIN "hierarchy_nodes" AS cn ON cn."id" = bn."country_node_id"
+WHERE sp."branch_id" = bn."id"
+	AND sp."currency" IS NULL;
+
+UPDATE "service_prices"
+SET "currency" = 'MYR'
+WHERE "currency" IS NULL
+	AND "branch_id" IS NULL;
+` },
+	{ hash: "0098_branch_company_tax_numbering", sql: `-- 0098_branch_company_tax_numbering.sql
+--
+-- WS3 (MOVE parity) — per-branch company/legal profile, per-branch/per-country
+-- tax scoping, and opt-in gapless per-branch document numbering.
+--
+-- All changes are ADDITIVE and BACKWARD-COMPATIBLE:
+--   * New branch_details columns are nullable — a branch with no profile behaves
+--     exactly as before.
+--   * tax_rates.country is nullable — org-global rates (country IS NULL) keep
+--     working; resolveTaxRate falls through to the org isDefault as before, so
+--     no branch can lose its rate (NO_TAX_RATE safety net preserved).
+--   * branch_number_sequences is a NEW table; numbering only switches to
+--     per-branch counters when a branch has an invoice/receipt prefix set,
+--     otherwise the existing global tenant_*_seq sequences are used unchanged.
+--
+-- Idempotent (ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS) — safe to
+-- re-run on partially-migrated tenants (0051–0063 duplicate lineage).
+
+-- --- Branch company / legal / tax profile + numbering prefixes ---------------
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "company_legal_name" text;
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "registration_number" text;
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "tax_id" text;
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "invoice_prefix" text;
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "receipt_prefix" text;
+-- Plain uuid (no cross-table FK) — matches the branch_details.currency
+-- precedent and avoids the drift-check FK gate. Points at tax_rates.id.
+ALTER TABLE "branch_details" ADD COLUMN IF NOT EXISTS "branch_tax_rate_id" uuid;
+
+-- Prefixes must be unique ACROSS branches: two branches sharing a prefix would
+-- mint identical document numbers (each per-branch counter starts at 1) and
+-- collide on the tenant-wide invoices.invoice_number / payments.payment_number
+-- UNIQUE constraint, rolling back the sale. Partial unique (NULLs allowed —
+-- most branches have no prefix) enforces it at the DB level, race-proof.
+CREATE UNIQUE INDEX IF NOT EXISTS "branch_details_invoice_prefix_idx"
+	ON "branch_details" ("invoice_prefix") WHERE "invoice_prefix" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "branch_details_receipt_prefix_idx"
+	ON "branch_details" ("receipt_prefix") WHERE "receipt_prefix" IS NOT NULL;
+
+-- --- Per-country tax scoping -------------------------------------------------
+-- Canonical country key = lowercased country-node name (same key the WS1
+-- currency map uses). NULL = org-global rate (today's behavior).
+ALTER TABLE "tax_rates" ADD COLUMN IF NOT EXISTS "country" text;
+CREATE INDEX IF NOT EXISTS "tax_rates_country_idx" ON "tax_rates" ("country");
+
+-- --- Gapless per-branch document numbering ----------------------------------
+CREATE TABLE IF NOT EXISTS "branch_number_sequences" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"branch_node_id" uuid NOT NULL,
+	"doc_type" text NOT NULL,
+	"next_seq" integer NOT NULL DEFAULT 1,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+-- One counter per (branch, doc type). The UNIQUE lets the numbering service
+-- ON CONFLICT-upsert the row on a branch's first document.
+CREATE UNIQUE INDEX IF NOT EXISTS "branch_number_sequences_branch_doc_idx"
+	ON "branch_number_sequences" ("branch_node_id", "doc_type");
+` },
+	{ hash: "0099_payroll_periods", sql: `-- 0099_payroll_periods.sql
+--
+-- WS5 (MOVE parity) — month-based payroll period lock.
+--
+-- A payroll period is a (branch, [period_start, period_end)) window whose
+-- commission can be frozen ('locked') so a back-dated correction can never
+-- silently land in a settled month and change already-paid totals. The window
+-- pair is the half-open interval produced by deriveCycleBounds (UTC), keyed by
+-- the branch hierarchy node. branch_node_id is a plain uuid (no cross-table FK
+-- — matches the branch_details/currency precedent, dodges the drift-check FK
+-- gate). A row exists only once a period is locked (or pre-created); its
+-- absence = open.
+--
+-- Idempotent (CREATE TABLE / INDEX IF NOT EXISTS) — safe to re-run.
+
+CREATE TABLE IF NOT EXISTS "payroll_periods" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"organization_id" text,
+	"branch_node_id" uuid NOT NULL,
+	"period_start" timestamptz NOT NULL,
+	"period_end" timestamptz NOT NULL,
+	"state" text NOT NULL DEFAULT 'open',
+	"locked_at" timestamptz,
+	"locked_by" text,
+	"lock_kind" text,
+	"unlock_reason" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- One row per (branch, window) — lets the service ON CONFLICT-upsert the lock.
+CREATE UNIQUE INDEX IF NOT EXISTS "payroll_periods_branch_window_idx"
+	ON "payroll_periods" ("branch_node_id", "period_start", "period_end");
+-- Grid queries scan by branch + start.
+CREATE INDEX IF NOT EXISTS "payroll_periods_branch_start_idx"
+	ON "payroll_periods" ("branch_node_id", "period_start");
+` },
+	{ hash: "0100_import_jobs", sql: `-- 0100_import_jobs.sql
+--
+-- WS6 (MOVE parity) — self-service CSV import history.
+--
+-- One row per committed (or failed) import run: which entity, how many rows
+-- landed vs errored, and a jsonb summary of per-row outcomes. Purely a history
+-- log — the actual data lands in the entity tables via their normal services.
+-- Plain uuid / text columns, no cross-table FK (drift-check gate precedent).
+--
+-- Idempotent (CREATE TABLE / INDEX IF NOT EXISTS).
+
+CREATE TABLE IF NOT EXISTS "import_jobs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"organization_id" text,
+	"entity" text NOT NULL,
+	"status" text NOT NULL DEFAULT 'pending',
+	"row_count" integer NOT NULL DEFAULT 0,
+	"created_count" integer NOT NULL DEFAULT 0,
+	"skipped_count" integer NOT NULL DEFAULT 0,
+	"error_count" integer NOT NULL DEFAULT 0,
+	"summary" jsonb,
+	"created_by" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "import_jobs_org_created_idx"
+	ON "import_jobs" ("organization_id", "created_at");
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

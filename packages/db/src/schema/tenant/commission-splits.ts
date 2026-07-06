@@ -143,6 +143,12 @@ export const commissionSplits = pgTable(
 			{ onDelete: "set null" },
 		),
 
+		// WS1 (multi-currency): ISO currency of this split, stamped from the
+		// source's branch at split-creation time. Nullable for pre-migration
+		// rows; liability/ledger aggregates GROUP BY currency and treat NULL as
+		// the tenant default until backfilled.
+		currency: text("currency"),
+
 		// Migration 0092 — Phase D: per-installment origination commission.
 		// NULL for single-payment / front-loaded rows (pre-Phase D and single plans).
 		// Set to the installments.id that triggered this split for multi-installment plans.

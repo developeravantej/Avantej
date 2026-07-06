@@ -2807,7 +2807,14 @@ export const platformAdminMigrationsRouterType = {
 export interface EmailDomainRow {
 	id: string;
 	organizationId: string;
-	resendDomainId: string;
+	/** "resend" (legacy) or "cloudflare". Dispatch/display branch on this. */
+	provider: string;
+	/** Null for Cloudflare rows (their identity is cfSubdomainId). */
+	resendDomainId: string | null;
+	cfZoneId: string | null;
+	cfSubdomainId: string | null;
+	/** "default" | "delegated" | "bare" (Cloudflare), null for Resend rows. */
+	onboardingTier: string | null;
 	domain: string;
 	fromName: string;
 	defaultLocalPart: string | null;

@@ -1,20 +1,48 @@
 import { eq, and, asc, desc, gte, lte, inArray, sql } from "drizzle-orm";
+import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { paymentItems } from "@avantej-core/db/schema/tenant/payment-items";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
+import { resolveBranchCurrency } from "./currency.service";
+import { nextBranchDocNumber } from "./numbering.service";
+
+/**
+ * The issuing branch's company/legal/tax profile for an invoice (WS3), plus
+ * the branch's resolved currency (WS1). Printed on the invoice PDF. Null when
+ * the invoice has no linked sales order (orphan/manual invoice → no branch).
+ */
+export type InvoiceBranchProfile = {
+	branchNodeId: string;
+	branchName: string | null;
+	companyLegalName: string | null;
+	registrationNumber: string | null;
+	taxId: string | null;
+	address: string | null;
+	currency: string;
+} | null;
+
 /** An invoice plus its line-item breakdown (resolved from the linked payment). */
 export type InvoiceWithItems = {
 	invoice: typeof invoices.$inferSelect;
 	items: (typeof paymentItems.$inferSelect)[];
+	/** Issuing-branch company/tax profile (WS3); null for orphan invoices. */
+	branch: InvoiceBranchProfile;
 };
 
 export type CreateInvoiceParams = {
 	invoiceNumber?: string;
 	salesOrderId?: string;
 	paymentId?: string;
+	/**
+	 * WS3: when set and the branch has an invoice prefix configured, the
+	 * invoice number is minted from the branch's gapless counter instead of
+	 * the global sequence. Omitted → unchanged global-sequence behavior.
+	 */
+	branchNodeId?: string | null;
 	date: Date;
 	dueDate?: Date;
 	customerId?: string;
@@ -158,15 +186,70 @@ export async function getInvoiceWithItems(
 			})
 		: [];
 
-	return { invoice, items };
+	const branch = await resolveInvoiceBranchProfile(tenantDb, invoice);
+	return { invoice, items, branch };
+}
+
+/**
+ * Resolve the issuing-branch company/tax profile for an invoice. Branch is
+ * reached via the linked sales order (invoices carry no branchId). Orphan
+ * invoices (no sales order → no branch) return null. Null-safe throughout —
+ * a branch with no branch_details row still returns a profile with the
+ * resolved currency and null company fields.
+ */
+async function resolveInvoiceBranchProfile(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	invoice: typeof invoices.$inferSelect,
+): Promise<InvoiceBranchProfile> {
+	if (!invoice.salesOrderId) return null;
+
+	const [order] = await tenantDb
+		.select({ branchId: salesOrders.branchId })
+		.from(salesOrders)
+		.where(eq(salesOrders.id, invoice.salesOrderId))
+		.limit(1);
+	if (!order?.branchId) return null;
+
+	const [node] = await tenantDb
+		.select({ name: hierarchyNodes.name })
+		.from(hierarchyNodes)
+		.where(eq(hierarchyNodes.id, order.branchId))
+		.limit(1);
+
+	const [detail] = await tenantDb
+		.select({
+			companyLegalName: branchDetails.companyLegalName,
+			registrationNumber: branchDetails.registrationNumber,
+			taxId: branchDetails.taxId,
+			address: branchDetails.address,
+		})
+		.from(branchDetails)
+		.where(eq(branchDetails.nodeId, order.branchId))
+		.limit(1);
+
+	const currency = await resolveBranchCurrency(tenantDb, order.branchId);
+
+	return {
+		branchNodeId: order.branchId,
+		branchName: node?.name ?? null,
+		companyLegalName: detail?.companyLegalName ?? null,
+		registrationNumber: detail?.registrationNumber ?? null,
+		taxId: detail?.taxId ?? null,
+		address: detail?.address ?? null,
+		currency,
+	};
 }
 
 export async function createInvoice(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: CreateInvoiceParams,
 ): Promise<typeof invoices.$inferSelect> {
+	// WS3: prefer a caller-supplied number, else the branch's gapless counter
+	// (when it has an invoice prefix), else the global sequence — unchanged for
+	// callers that pass no branchNodeId.
 	const invoiceNumber =
 		params.invoiceNumber ??
+		(await nextBranchDocNumber(tenantDb, params.branchNodeId, "invoice")) ??
 		(await generateInvoiceNumber(tenantDb, params.date));
 
 	const [row] = await tenantDb

@@ -407,6 +407,8 @@ export type SalesOrderKpiSummary = {
 	totalSalesCents: number;
 	totalRefundedCents: number;
 	outstandingCents: number;
+	/** Cash actually collected (SUM of invoices.amount_paid) for the period. */
+	totalCollectedCents: number;
 	salesCount: number;
 	period: KpiPeriod;
 	// Legacy fields — kept for backwards compatibility
@@ -468,6 +470,7 @@ export async function getSalesOrderKpiSummary(
 		totalSalesCents: 0,
 		totalRefundedCents: 0,
 		outstandingCents: 0,
+		totalCollectedCents: 0,
 		salesCount: 0,
 		period,
 		confirmedCount: 0,
@@ -554,11 +557,34 @@ export async function getSalesOrderKpiSummary(
 		.leftJoin(soiTable, eq(soiTable.salesOrderId, salesOrders.id))
 		.where(and(...orderConditions));
 
-	// outstandingCents: sum of payment items with status pending/overdue for orders in period.
-	// We store this inline rather than joining invoices — use refundStatus != 'processed'
-	// as a lightweight proxy (orders with partial/pending refund = outstanding balance).
-	// A more precise query would join payment_items; for now surface it as a derived metric.
-	const outstandingCents = 0; // Placeholder: requires payment_items join wired by payment router
+	// Outstanding = unpaid invoice balance (total - amount_paid) and
+	// collected = cash actually received, both over the period's live orders.
+	// Installment sales bill the full amount up front but collect per
+	// instalment, so these must come from invoices, not order totals.
+	const { invoices: invTable } = await import(
+		"@avantej-core/db/schema/tenant/invoices"
+	);
+	const [balances] = await tenantDb
+		.select({
+			outstanding:
+				sql<number>`COALESCE(SUM(GREATEST(${invTable.totalAmount} - ${invTable.amountPaid}, 0)), 0)`.mapWith(
+					Number,
+				),
+			collected: sql<number>`COALESCE(SUM(${invTable.amountPaid}), 0)`.mapWith(
+				Number,
+			),
+		})
+		.from(invTable)
+		.innerJoin(salesOrders, eq(invTable.salesOrderId, salesOrders.id))
+		.where(
+			and(
+				...orderConditions,
+				sql`${salesOrders.status} NOT IN ('cancelled', 'draft')`,
+				sql`${invTable.status} != 'cancelled'`,
+			),
+		);
+	const outstandingCents = balances?.outstanding ?? 0;
+	const totalCollectedCents = balances?.collected ?? 0;
 
 	const confirmedCount = kpi?.confirmedCount ?? 0;
 	const cancelledCount = kpi?.cancelledCount ?? 0;
@@ -571,6 +597,7 @@ export async function getSalesOrderKpiSummary(
 		totalSalesCents: kpi?.totalSalesCents ?? 0,
 		totalRefundedCents: kpi?.totalRefundedCents ?? 0,
 		outstandingCents,
+		totalCollectedCents,
 		salesCount: kpi?.salesCount ?? 0,
 		period,
 		confirmedCount,

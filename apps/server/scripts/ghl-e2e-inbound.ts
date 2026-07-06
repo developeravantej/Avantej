@@ -30,13 +30,19 @@ const BASE = process.env.GHL_E2E_BASE_URL || "http://avantej.localhost:3020";
 
 function loadDevVars(): void {
 	try {
-		for (const line of readFileSync(join(__dirname, "../.dev.vars"), "utf-8").split("\n")) {
+		for (const line of readFileSync(
+			join(__dirname, "../.dev.vars"),
+			"utf-8",
+		).split("\n")) {
 			const t = line.trim();
 			if (!t || t.startsWith("#")) continue;
 			const eq = t.indexOf("=");
 			if (eq === -1) continue;
 			const k = t.slice(0, eq).trim();
-			const v = t.slice(eq + 1).trim().replace(/^"(.*)"$/, "$1");
+			const v = t
+				.slice(eq + 1)
+				.trim()
+				.replace(/^"(.*)"$/, "$1");
 			if (!process.env[k]) process.env[k] = v;
 		}
 	} catch {}
@@ -59,22 +65,35 @@ async function fire() {
 		})
 		.onConflictDoUpdate({
 			target: ghlBranchLinks.ghlLocationId,
-			set: { webhookSecret: SECRET, isActive: true, tenantBranchId: BRANCH_NODE },
+			set: {
+				webhookSecret: SECRET,
+				isActive: true,
+				tenantBranchId: BRANCH_NODE,
+			},
 		});
 
 	const contactId = `e2e-ghl-${process.argv[3] || process.pid}`;
 	const body = JSON.stringify({
 		type: "ContactCreate",
 		locationId: LOCATION,
-		contact: { id: contactId, firstName: "E2E", lastName: "GHLInbound", phone: "+60198887766" },
+		contact: {
+			id: contactId,
+			firstName: "E2E",
+			lastName: "GHLInbound",
+			phone: "+60198887766",
+		},
 	});
 	const res = await fetch(`${BASE}/webhooks/gohighlevel/${LOCATION}`, {
 		method: "POST",
-		headers: { "content-type": "application/json", "x-wh-signature": signGhl(SECRET, body) },
+		headers: {
+			"content-type": "application/json",
+			"x-wh-signature": signGhl(SECRET, body),
+		},
 		body,
 	});
 	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-	if (res.status !== 200) throw new Error(`expected 200, got ${res.status}: ${JSON.stringify(json)}`);
+	if (res.status !== 200)
+		throw new Error(`expected 200, got ${res.status}: ${JSON.stringify(json)}`);
 	const events = await tenantDb
 		.select({ status: ghlSyncEvents.status })
 		.from(ghlSyncEvents)
@@ -88,21 +107,40 @@ async function cleanup(contactId: string) {
 	const cpDb = getControlPanelDb();
 	const tenantDb = await getTenantDb(ORG_ID);
 	const links = await tenantDb
-		.select({ userId: ghlContactLinks.userId, cpId: ghlContactLinks.customerProfileId })
+		.select({
+			userId: ghlContactLinks.userId,
+			cpId: ghlContactLinks.customerProfileId,
+		})
 		.from(ghlContactLinks)
 		.where(eq(ghlContactLinks.ghlContactId, contactId));
 	const placeholderEmail = buildPlaceholderEmail(contactId);
-	await tenantDb.delete(ghlSyncEvents).where(eq(ghlSyncEvents.ghlContactId, contactId));
-	await tenantDb.delete(ghlContactLinks).where(eq(ghlContactLinks.ghlContactId, contactId));
-	if (links[0]?.cpId) await tenantDb.delete(customerProfiles).where(eq(customerProfiles.id, links[0].cpId));
-	if (links[0]?.userId) await tenantDb.delete(members).where(eq(members.userId, links[0].userId));
-	const u = await cpDb.select({ id: user.id }).from(user).where(eq(user.email, placeholderEmail));
+	await tenantDb
+		.delete(ghlSyncEvents)
+		.where(eq(ghlSyncEvents.ghlContactId, contactId));
+	await tenantDb
+		.delete(ghlContactLinks)
+		.where(eq(ghlContactLinks.ghlContactId, contactId));
+	if (links[0]?.cpId)
+		await tenantDb
+			.delete(customerProfiles)
+			.where(eq(customerProfiles.id, links[0].cpId));
+	if (links[0]?.userId)
+		await tenantDb.delete(members).where(eq(members.userId, links[0].userId));
+	const u = await cpDb
+		.select({ id: user.id })
+		.from(user)
+		.where(eq(user.email, placeholderEmail));
 	if (u[0]?.id) {
-		await tenantDb.delete(customerProfiles).where(eq(customerProfiles.userId, u[0].id));
+		await tenantDb
+			.delete(customerProfiles)
+			.where(eq(customerProfiles.userId, u[0].id));
 		await tenantDb.delete(members).where(eq(members.userId, u[0].id));
 		await cpDb.delete(user).where(eq(user.email, placeholderEmail));
 	}
-	await cpDb.update(ghlBranchLinks).set({ isActive: false }).where(eq(ghlBranchLinks.ghlLocationId, LOCATION));
+	await cpDb
+		.update(ghlBranchLinks)
+		.set({ isActive: false })
+		.where(eq(ghlBranchLinks.ghlLocationId, LOCATION));
 	console.log(`cleaned ${contactId} + deactivated ${LOCATION}`);
 }
 
@@ -113,4 +151,9 @@ async function main() {
 	else if (cmd === "cleanup") await cleanup(process.argv[3] || "");
 	else throw new Error("usage: ghl-e2e-inbound.ts fire|cleanup <contactId>");
 }
-main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+main()
+	.then(() => process.exit(0))
+	.catch((e) => {
+		console.error(e);
+		process.exit(1);
+	});

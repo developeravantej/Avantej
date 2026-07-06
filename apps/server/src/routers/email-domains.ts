@@ -51,7 +51,9 @@ type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 function getControlPanelDb(context: {
 	honoContext?: { get(key: string): unknown };
 }): ControlPanelDb {
-	const db = context.honoContext?.get("controlPanelDb") as ControlPanelDb | undefined;
+	const db = context.honoContext?.get("controlPanelDb") as
+		| ControlPanelDb
+		| undefined;
 	if (!db) {
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel database not available",
@@ -66,7 +68,10 @@ async function requireOrgAdmin(
 	organizationId: string,
 ): Promise<void> {
 	const rows = await controlPanelDb
-		.select({ role: organizationMembers.role, status: organizationMembers.status })
+		.select({
+			role: organizationMembers.role,
+			status: organizationMembers.status,
+		})
 		.from(organizationMembers)
 		.where(
 			and(
@@ -77,7 +82,9 @@ async function requireOrgAdmin(
 		.limit(1);
 	const m = rows[0];
 	if (!m) {
-		throw new ORPCError("FORBIDDEN", { message: "Not a member of this organization" });
+		throw new ORPCError("FORBIDDEN", {
+			message: "Not a member of this organization",
+		});
 	}
 	if (m.status !== "active") {
 		throw new ORPCError("FORBIDDEN", { message: "Membership is not active" });
@@ -101,7 +108,10 @@ export async function auditEmailDomainChange(
 		session?: { user: { id: string } } | null;
 	},
 	params: {
-		action: "email_domain.registered" | "email_domain.deleted" | "email_route.changed";
+		action:
+			| "email_domain.registered"
+			| "email_domain.deleted"
+			| "email_route.changed";
 		entityType?: "email_domain" | "email_notification_route";
 		entityId: string;
 		summary: string;
@@ -109,7 +119,9 @@ export async function auditEmailDomainChange(
 	},
 ): Promise<void> {
 	try {
-		const tenantDb = context.tenantDb as Parameters<typeof writeAudit>[0] | undefined;
+		const tenantDb = context.tenantDb as
+			| Parameters<typeof writeAudit>[0]
+			| undefined;
 		const userId = context.session?.user?.id;
 		if (!tenantDb || !context.member || !userId) {
 			console.warn(
@@ -132,9 +144,16 @@ export async function auditEmailDomainChange(
 	}
 }
 
-const RESEND_REGIONS = ["us-east-1", "eu-west-1", "sa-east-1", "ap-northeast-1"] as const;
+const RESEND_REGIONS = [
+	"us-east-1",
+	"eu-west-1",
+	"sa-east-1",
+	"ap-northeast-1",
+] as const;
 
-function mapResendStatus(resendStatus: string): "pending" | "verifying" | "verified" | "failed" {
+function mapResendStatus(
+	resendStatus: string,
+): "pending" | "verifying" | "verified" | "failed" {
 	switch (resendStatus) {
 		case "verified":
 			return "verified";
@@ -173,13 +192,22 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			// Rate-limit BEFORE the (paid) Resend call so abuse never costs money.
-			const limit = await checkEmailDomainCreateAllowed(cpDb, input.organizationId);
+			const limit = await checkEmailDomainCreateAllowed(
+				cpDb,
+				input.organizationId,
+			);
 			if (!limit.allowed) {
 				throw new ORPCError(limit.code, { message: limit.reason });
 			}
@@ -233,10 +261,16 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const row = await getEmailDomainById(cpDb, {
 				id: input.id,
@@ -268,10 +302,16 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const row = await getEmailDomainById(cpDb, {
 				id: input.id,
@@ -281,16 +321,20 @@ export const emailDomainsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
 			}
 
-			try {
-				await removeResendDomain(row.resendDomainId);
-			} catch (e) {
-				console.error("Failed to remove domain at Resend", {
-					resendDomainId: row.resendDomainId,
-					error: e,
-				});
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to delete domain at Resend; please retry.",
-				});
+			// Remove at Resend first (so a Resend failure is retryable without
+			// losing the resendDomainId), then delete the row.
+			if (row.resendDomainId) {
+				try {
+					await removeResendDomain(row.resendDomainId);
+				} catch (e) {
+					console.error("Failed to remove domain at Resend", {
+						resendDomainId: row.resendDomainId,
+						error: e,
+					});
+					throw new ORPCError("INTERNAL_SERVER_ERROR", {
+						message: "Failed to delete domain at Resend; please retry.",
+					});
+				}
 			}
 
 			await deleteEmailDomain(cpDb, {
@@ -318,10 +362,16 @@ export const emailDomainsRouter = {
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 			return listEmailDomainsForOrg(cpDb, input.organizationId);
 		}),
 
@@ -338,10 +388,16 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const row = await getEmailDomainById(cpDb, {
 				id: input.id,
@@ -355,6 +411,7 @@ export const emailDomainsRouter = {
 				return row;
 			}
 
+			if (!row.resendDomainId) return row;
 			const live = await getResendDomain(row.resendDomainId);
 			const mapped = mapResendStatus(live.status);
 			const updated = await updateEmailDomainStatus(cpDb, {
@@ -377,10 +434,16 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const row = await getEmailDomainById(cpDb, {
 				id: input.id,
@@ -390,6 +453,7 @@ export const emailDomainsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
 			}
 
+			if (!row.resendDomainId) return row;
 			await verifyResendDomain(row.resendDomainId);
 
 			const live = await getResendDomain(row.resendDomainId);
@@ -420,10 +484,16 @@ export const emailDomainsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const row = await getEmailDomainById(cpDb, {
 				id: input.id,
@@ -492,10 +562,16 @@ are correctly configured and Resend can deliver from this domain.</p>
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const domain = await getEmailDomainById(cpDb, {
 				id: input.emailDomainId,
@@ -515,16 +591,24 @@ are correctly configured and Resend can deliver from this domain.</p>
 			z.object({
 				emailDomainId: z.string().uuid(),
 				organizationId: z.string().uuid(),
-				localPart: z.string().regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
+				localPart: z
+					.string()
+					.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
 				label: z.string().min(1).max(100).optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const domain = await getEmailDomainById(cpDb, {
 				id: input.emailDomainId,
@@ -564,10 +648,16 @@ are correctly configured and Resend can deliver from this domain.</p>
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const domain = await getEmailDomainById(cpDb, {
 				id: input.emailDomainId,
@@ -596,14 +686,25 @@ are correctly configured and Resend can deliver from this domain.</p>
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const routes = await listNotificationRoutes(cpDb, input.organizationId);
-			const verified = await getVerifiedEmailDomainForOrg(cpDb, input.organizationId);
-			const aliases = verified ? await listAliasesForDomain(cpDb, verified.id) : [];
+			const verified = await getVerifiedEmailDomainForOrg(
+				cpDb,
+				input.organizationId,
+			);
+			const aliases = verified
+				? await listAliasesForDomain(cpDb, verified.id)
+				: [];
 			return {
 				routes,
 				aliases: aliases.map((a) => ({
@@ -639,25 +740,36 @@ are correctly configured and Resend can deliver from this domain.</p>
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			if (input.aliasId) {
-				const verified = await getVerifiedEmailDomainForOrg(cpDb, input.organizationId);
+				const verified = await getVerifiedEmailDomainForOrg(
+					cpDb,
+					input.organizationId,
+				);
 				// No verified domain → no alias can belong to this org. Fail fast
 				// (and avoid a needless alias query) rather than relying on the
 				// empty-list .some() below.
 				if (!verified) {
 					throw new ORPCError("BAD_REQUEST", {
-						message: "Organization has no verified sending domain; cannot bind an alias",
+						message:
+							"Organization has no verified sending domain; cannot bind an alias",
 					});
 				}
 				const aliases = await listAliasesForDomain(cpDb, verified.id);
 				if (!aliases.some((a) => a.id === input.aliasId)) {
 					throw new ORPCError("BAD_REQUEST", {
-						message: "Alias does not belong to this organization's verified domain",
+						message:
+							"Alias does not belong to this organization's verified domain",
 					});
 				}
 			}
@@ -698,10 +810,16 @@ are correctly configured and Resend can deliver from this domain.</p>
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
 
 			const deleted = await deleteNotificationRoute(cpDb, {
 				organizationId: input.organizationId,
@@ -716,6 +834,9 @@ are correctly configured and Resend can deliver from this domain.</p>
 				changes: { notificationType: input.notificationType, reset: true },
 			});
 
-			return { deleted: true as const, notificationType: input.notificationType };
+			return {
+				deleted: true as const,
+				notificationType: input.notificationType,
+			};
 		}),
 };

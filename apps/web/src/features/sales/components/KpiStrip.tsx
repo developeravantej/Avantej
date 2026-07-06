@@ -14,9 +14,12 @@ export function KpiStrip({
 	kpiPeriod: "today" | "week" | "month";
 	onPeriodChange: (v: "today" | "week" | "month") => void;
 }) {
+	// Net Collected = cash received minus refunds. Falls back to the old
+	// booked-minus-refunded calc while the API response lacks the field.
 	const netCollectedCents =
 		kpiSummary != null
-			? kpiSummary.totalSalesCents - kpiSummary.totalRefundedCents
+			? (kpiSummary.totalCollectedCents ?? kpiSummary.totalSalesCents) -
+				kpiSummary.totalRefundedCents
 			: null;
 
 	const tiles = [

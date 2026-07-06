@@ -100,7 +100,9 @@ export const deriveSeverity = getActionSeverity;
 
 export interface WriteAuditParams {
 	actorUserId: string;
-	actorMemberId?: string;
+	// Nullable: system/cron actors have no member row. Coerced to SQL NULL
+	// before insert (actor_member_id is a nullable uuid column).
+	actorMemberId?: string | null;
 	actorRole?: string;
 	action: string; // see canonical vocabulary at top of file
 	entityType: string;

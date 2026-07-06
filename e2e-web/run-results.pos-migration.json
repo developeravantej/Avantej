@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "relpath": "pos/pos-installment-sale.journey.json",
+      "title": "Migrated prod stack: MOVE owner login → POS + installment domain rule (read-verified)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        { "file": "pos/pos-installment-sale/01-login.png", "caption": "Login page on app.avantej.com (Cloudflare web-prod → backend api.avantej.com)" },
+        { "file": "pos/pos-installment-sale/02-dashboard-pos.png", "caption": "Authenticated as MOVE Owner — dashboard + POS New Sale wizard render (MOVE Private Fitness · 23 branches)" },
+        { "file": "pos/pos-installment-sale/03-services-catalog.png", "caption": "Services catalog reads new Neon tenant avantej-tenant-move — 70/70 active services" },
+        { "file": "pos/pos-installment-sale/04-installment-plans.png", "caption": "DOMAIN RULE ✅ installment plans show per-installment amount (Quarterly RM300×4, Half RM600×2) — NOT the full RM1,200" }
+      ],
+      "steps": [
+        "Open https://app.avantej.com/login on the migrated prod stack (new Neon + Stripe + Cloudflare)",
+        "Log in as franchisee@gmail.com (MOVE Owner) — Better-Auth on new control-panel Neon (avantej-control-prod), scrypt hashing",
+        "Dashboard + full nav + POS New Sale wizard render for MOVE Private Fitness (23 branches)",
+        "Services catalog renders 70/70 active services read from new tenant DB avantej-tenant-move",
+        "Installment Plans tab shows 3 migrated plans with correct per-installment splits (Full / Half 2× / Quarterly 4×)",
+        "Assert domain rule: a RM1,200 sale shows per-installment amounts (RM300×4 or RM600×2), never the full price"
+      ],
+      "notes": "Read-verified end-to-end on the PROD migrated stack. Committed-sale write path intentionally NOT exercised to keep the client's MOVE tenant pristine (0 customers / 0 sales baseline). Commission-reaches-trainer rule (commission_splits) + POS write path remain for the client's first real sale or an isolated Neon-branch test. All sales/installment/commission tables confirmed present on the new tenant DB."
+    }
+  ]
+}

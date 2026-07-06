@@ -31,6 +31,7 @@
 		"@orpc/zod": "catalog:",
 		"hono": "catalog:",
 		"dotenv": "catalog:",
+		"fflate": "^0.8.3",
 		"zod": "catalog:",
 		"@avantej-core/auth": "workspace:*",
 		"@avantej-core/db": "workspace:*",

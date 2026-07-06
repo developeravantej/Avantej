@@ -24,11 +24,9 @@ export function CategoriesTabPage() {
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: [
-			orpc.productCategories.list.key({
-				input: { organizationId: organizationId! },
-			}),
-		],
+		queryKey: orpc.productCategories.list.key({
+			input: { organizationId: organizationId! },
+		}),
 		queryFn: () =>
 			client.productCategories.list({ organizationId: organizationId! }),
 		enabled: !!organizationId,
@@ -56,11 +54,9 @@ export function CategoriesTabPage() {
 		successMessage: "Category deleted successfully",
 		errorMessage: (e) => e.message,
 		invalidate: [
-			[
-				orpc.productCategories.list.key({
-					input: { organizationId: organizationId! },
-				}),
-			],
+			orpc.productCategories.list.key({
+				input: { organizationId: organizationId! },
+			}),
 		],
 	});
 

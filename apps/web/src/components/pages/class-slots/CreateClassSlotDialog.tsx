@@ -17,11 +17,14 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { BranchSelector } from "@/components/branch/branch-selector";
+import { formatPrice } from "@/lib/money";
 import type { CreateFormState } from "./types";
 
 interface Service {
 	id: string;
 	name: string;
+	/** Cents. Shown as a qualifier — services can share a name across price tiers. */
+	price?: number | null;
 }
 
 interface Member {
@@ -90,7 +93,9 @@ export function CreateClassSlotDialog({
 							<SelectContent>
 								{services.map((svc) => (
 									<SelectItem key={svc.id} value={svc.id}>
-										{svc.name}
+										{svc.price != null
+											? `${svc.name} — ${formatPrice(svc.price, "MYR")}`
+											: svc.name}
 									</SelectItem>
 								))}
 							</SelectContent>

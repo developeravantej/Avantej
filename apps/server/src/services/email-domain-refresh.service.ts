@@ -70,6 +70,7 @@ export async function runEmailDomainRefresh(
 
 	for (const row of stale) {
 		try {
+			if (!row.resendDomainId) continue;
 			// Nudge Resend to re-check DNS (idempotent), then read authoritative
 			// status. A verify failure is non-fatal — we still read live status.
 			await verifyResendDomain(row.resendDomainId).catch(() => {});

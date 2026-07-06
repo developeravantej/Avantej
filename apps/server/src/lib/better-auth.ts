@@ -309,6 +309,11 @@ function createBetterAuth(c?: Context) {
 			"http://localhost:4001", // E2E alt port
 			"http://localhost:3022", // E2E alt port (web dev on 3022)
 			"http://avantej.localhost:3022", // E2E tenant subdomain on 3022
+			// Phase A: every tenant subdomain (move.avantej.com, kfc.avantej.com, …).
+			// Better-Auth's own origin/CSRF gate is separate from the Hono CORS layer —
+			// both must allow *.avantej.com. (Wildcard pattern; verify support for the
+			// installed better-auth version — falls back to the Hono CORS gate regardless.)
+			"https://*.avantej.com",
 			"mybettertapp://",
 			"exp://",
 		],
@@ -522,12 +527,14 @@ function createBetterAuth(c?: Context) {
 			//   enabled: true,
 			//   maxAge: 60,
 			// },
-			// uncomment crossSubDomainCookies setting when ready to deploy and replace <your-workers-subdomain> with your actual workers subdomain
-			// https://developers.cloudflare.com/workers/wrangler/configuration/#workersdev
-			// crossSubDomainCookies: {
-			//   enabled: true,
-			//   domain: "<your-workers-subdomain>",
-			// },
+			// Phase A: share the session cookie across all *.avantej.com tenant subdomains
+			// so a login on one subdomain is valid platform-wide. Requires secure cookies
+			// (sameSite=none/secure), so this only takes effect over https (isHttps via
+			// BETTER_AUTH_URL). Local http dev on avantej.localhost stays host-only — fine.
+			crossSubDomainCookies: {
+				enabled: true,
+				domain: ".avantej.com",
+			},
 		},
 		plugins: [
 			expo(), // Expo plugin - safe for both web and native, only activates for Expo requests

@@ -11,6 +11,7 @@ import {
 	setDefaultTaxRate,
 	deactivateTaxRate,
 } from "@avantej-core/services/tax-rates.service";
+import { resolveTaxRate } from "@avantej-core/services/tax.service";
 export const taxRatesRouter = {
 	list: tenantProcedure
 		.input(
@@ -87,6 +88,32 @@ export const taxRatesRouter = {
 			return taxRate ?? null;
 		}),
 
+	// Branch-aware resolution for the POS tax preview. Mirrors exactly what
+	// pos.service snapshots at record time (branch override → per-country →
+	// org default) so the previewed rate matches the charged rate. branchId
+	// null resolves org-wide (original getDefault-equivalent behavior).
+	resolveForBranch: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid().nullable().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
+			if (context.member.role !== "client") {
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
+			}
+
+			return resolveTaxRate(context.tenantDb, input.branchId ?? null);
+		}),
+
 	create: tenantProcedure
 		.input(
 			z.object({
@@ -99,6 +126,7 @@ export const taxRatesRouter = {
 				effectiveFrom: z.string().datetime(),
 				effectiveUntil: z.string().datetime().optional(),
 				description: z.string().optional(),
+				country: z.string().nullable().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -121,6 +149,7 @@ export const taxRatesRouter = {
 					? new Date(input.effectiveUntil)
 					: undefined,
 				description: input.description,
+				country: input.country,
 			});
 		}),
 
@@ -136,6 +165,7 @@ export const taxRatesRouter = {
 				effectiveFrom: z.string().datetime().optional(),
 				effectiveUntil: z.string().datetime().optional(),
 				description: z.string().optional(),
+				country: z.string().nullable().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -159,6 +189,7 @@ export const taxRatesRouter = {
 					? new Date(input.effectiveUntil)
 					: undefined,
 				description: input.description,
+				country: input.country,
 			});
 
 			if (!result) {

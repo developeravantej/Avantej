@@ -713,10 +713,19 @@ export function CustomerProfilePanel({
 								{restoreMutation.isPending ? "Restoring…" : "Restore"}
 							</button>
 						) : (
+							// Backend rejects soft-deleting unclaimed profiles (placeholder
+							// user row must be resolved via claim link first) — disable the
+							// button instead of letting the request 400.
 							<button
 								type="button"
 								onClick={() => setDeleteDialogOpen(true)}
-								className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#fecaca] bg-white px-3.5 py-1.5 text-[13px] font-medium text-rose-500 transition hover:bg-rose-50"
+								disabled={detail?.profile?.isUnclaimed ?? false}
+								title={
+									detail?.profile?.isUnclaimed
+										? "Unclaimed profiles can't be deleted. Send the customer their claim link first."
+										: undefined
+								}
+								className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#fecaca] bg-white px-3.5 py-1.5 text-[13px] font-medium text-rose-500 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<Trash2 className="h-3.5 w-3.5" />
 								Delete

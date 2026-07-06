@@ -42,7 +42,9 @@ export function QueueRow({
 	organizationId: string;
 	onApproved: () => void;
 }) {
-	const isWalkIn = !refund.customerId.startsWith("mem_");
+	// Use the sales order's customer_type — customer ids are UUIDs, so the old
+	// startsWith("mem_") heuristic labelled every customer a walk-in.
+	const isWalkIn = refund.customerType === "walk_in";
 
 	const avatarCls = isPending
 		? isWalkIn

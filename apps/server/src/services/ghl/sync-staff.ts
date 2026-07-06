@@ -101,8 +101,14 @@ export async function syncStaffToGhl(
 		where: eq(ghlUserLinks.memberId, member.id),
 	});
 
+	// A prior failed create leaves a link row with ghlUserId="pending" (the
+	// error placeholder). Such a row is NOT a real GHL user — treating it as
+	// one makes update/delete PUT/DELETE /users/pending → 401 and permanently
+	// wedges the member's sync. Only a link with a real GHL id counts as linked.
+	const hasRealGhlUser = !!existing && existing.ghlUserId !== "pending";
+
 	try {
-		if (operation === "create" || (operation === "update" && !existing)) {
+		if (operation === "create" || (operation === "update" && !hasRealGhlUser)) {
 			const payload = buildUserPayload({
 				companyId,
 				locationId,
@@ -159,10 +165,10 @@ export async function syncStaffToGhl(
 		}
 
 		// delete
-		if (!existing) return { status: "skipped" };
+		if (!hasRealGhlUser) return { status: "skipped" };
 		await ghlFetch<unknown>({
 			method: "DELETE",
-			path: `/users/${existing.ghlUserId}`,
+			path: `/users/${existing!.ghlUserId}`,
 			apiKey,
 		});
 		await upsertUserLink({
@@ -179,7 +185,17 @@ export async function syncStaffToGhl(
 	} catch (error) {
 		const message =
 			error instanceof GhlApiError
-				? `${error.code}: ${error.message}`
+				? // Surface GHL's raw response body so a 422 shows the offending
+					// field instead of just "GHL API 422 on /users/".
+					`${error.code}: ${error.message}${
+						error.responseBody
+							? ` — ${
+									typeof error.responseBody === "string"
+										? error.responseBody
+										: JSON.stringify(error.responseBody)
+								}`
+							: ""
+					}`.slice(0, 800)
 				: error instanceof Error
 					? error.message
 					: String(error);

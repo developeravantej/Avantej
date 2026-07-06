@@ -1,0 +1,3074 @@
+[
+  {
+    "module": "scope-switcher-isolation",
+    "routes": [
+      "/dashboard (apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx) — header hosts the scope combobox via DashboardHeader.tsx",
+      "apps/web/src/routes/__root.tsx — ScopeProvider wraps the whole authenticated app",
+      "Scope switcher also rendered on: /dashboard/services, /dashboard/expenses/view, /dashboard/announcements, /dashboard/trainers, packages/memberships, class-slots, commissions all-tab + payouts-tab, reports, user view, attendance-tab, POS workflow"
+    ],
+    "procedures": [
+      {
+        "name": "auth.userContext",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.getNode",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.getDescendants",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listNodesWithStats",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getDashboardKpis",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getStaffPerformance",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getRevenueSeries",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.largestToday",
+        "type": "query"
+      },
+      {
+        "name": "members.newToday",
+        "type": "query"
+      },
+      {
+        "name": "auditLogs.list",
+        "type": "query"
+      },
+      {
+        "name": "appointments.list",
+        "type": "query"
+      }
+    ],
+    "screens": [
+      "Dashboard header scope combobox (collapsed trigger) showing 'All · MOVE Private Fitness' with globe + chevron icons",
+      "Scope switcher popover open: 'Search branches...' input, pinned 'All' entry (checkmark when active), and a depth-indented country→state→branch list with uppercase type tags (COUNTRY/STATE/BRANCH)",
+      "Search-filtered branch list inside the popover, including the 'No branches found.' empty state when no node name matches",
+      "Narrowed dashboard render: KPI cards, staff performance, revenue series, today's appointments and audit feed all re-query with branchId = selected node",
+      "Static scope label variant (data-testid scope-switcher-static) shown only when a member has <=1 accessible node — NOT reachable for the MOVE franchisee admin (33 nodes)",
+      "Same scope switcher surfaced on secondary pages (Services, Expenses, Announcements, Trainers, Memberships, Class Slots, Commissions all/payouts, Reports, User view, Attendance, POS) where the persisted scope continues to narrow each list"
+    ],
+    "existingCoverage": "No screenshot/video E2E covers the scope switcher UI. The e2e-web screenshot suite only covers the POS installment read-path; the video suite covers settings/email (9 tests). A separate Playwright API-assertion suite under _e2e/web touches scope/isolation but at the RPC layer, not the rendered switcher, and most of it self-skips on PROD: _e2e/web/rbac/listnodes-scope.rbac.spec.ts (skips without a seeded staff.json session; asserts a branch-scoped staff sees a strict subset of the admin node tree), _e2e/web/multi-tenant/second-tenant.isolation.spec.ts (skips without a provisioned org B), and _e2e/web/multi-tenant/unknown-org.isolation.spec.ts (runs: a bogus organizationId → hierarchy/listNodes 403). Component/unit tests exist (apps/web/src/__tests__/.../*-scope.test.tsx, ScopeProvider.test.tsx, scope-switcher.test.tsx) but are jsdom unit tests, not agent-driven screenshot E2E. So the user-facing render + narrowing behavior on PROD is entirely unproven by screenshots.",
+    "gaps": [
+      "No screenshot proof the scope combobox renders in the dashboard header with the correct 'All · MOVE Private Fitness' label after login",
+      "No screenshot proof that opening the popover renders the caller's accessibleNodeIds as a depth-ordered country→state→branch tree (MOVE: 33 nodes / 23 branches)",
+      "No proof that selecting a branch narrows the dashboard (trigger label changes and every KPI/widget re-queries with branchId)",
+      "No proof the in-popover search filters the list and shows 'No branches found.'",
+      "No proof the chosen scope persists across navigation (localStorage) and narrows other pages (Services/Expenses)",
+      "No proof that resetting to 'All' restores the org-wide full-accessibleNodeIds view",
+      "No screenshot evidence the switcher only ever lists MOVE's own nodes (cross-tenant isolation) — only asserted via skipped API specs"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Scope switcher renders and opens the country→state→branch tree (RBAC ceiling visible)",
+        "journeySteps": [
+          "Dashboard loaded; header scope combobox shows 'All · MOVE Private Fitness'",
+          "Combobox clicked; popover open showing 'Search branches...' input and the pinned 'All · MOVE Private Fitness' entry with its checkmark active",
+          "List showing top-level depth-indented nodes with uppercase COUNTRY/STATE type tags",
+          "List scrolled to reveal branch-level entries tagged BRANCH (part of MOVE's 23 branches)"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render. Drives only auth.userContext (already loaded) + the client-side ScopeProvider tree build from member.accessibleNodeIds. Proves the migration carried hierarchy + accessibleNodeIds for the franchisee admin. The static-label variant is unreachable here (admin has 33 nodes), so the interactive combobox is guaranteed."
+      },
+      {
+        "title": "Selecting a branch narrows the dashboard, then 'All' restores org-wide view",
+        "journeySteps": [
+          "Dashboard at 'All' scope showing org-wide KPI cards and widgets",
+          "Scope popover open; a specific branch row highlighted before selection",
+          "Trigger now shows the selected branch name (no longer 'All'); dashboard widgets re-rendered for that branch (empty-state cards expected since MOVE has 0 sales/members)",
+          "Popover reopened with the 'All · MOVE Private Fitness' entry re-selected",
+          "Dashboard restored to the org-wide view"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "DB stays pristine: scope changes only fire read queries with branchId=scopeNodeId (analytics.getDashboardKpis, getStaffPerformance, getRevenueSeries, salesOrders.largestToday, members.newToday, auditLogs.list, appointments.list) and persist the node id to localStorage (client-only, no server mutation). Honestly read-only despite the localStorage write. Narrowed dashboard will likely show empty states given MOVE's 0 sales_orders/0 members."
+      },
+      {
+        "title": "In-switcher search filters branches and shows the empty state",
+        "journeySteps": [
+          "Scope popover open showing the full branch list and the pinned 'All' entry",
+          "A partial branch name typed into 'Search branches...'; list filtered to matching nodes and the 'All' entry hidden while searching",
+          "A non-matching string typed; popover shows the 'No branches found.' empty state"
+        ],
+        "captureCount": 3,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Exercises the client-side filter + empty-state branch in ScopeSwitcher.tsx (filtered.length === 0). No network, no DB. Needs a real branch name to type — discover one from the open list in the prior step (do not hardcode)."
+      },
+      {
+        "title": "Selected scope persists across navigation and narrows other pages",
+        "journeySteps": [
+          "Dashboard with a branch selected in the scope combobox",
+          "Navigate to Services; the same branch still shown in that page's scope switcher",
+          "Services catalog list scoped to that branch (services.list called with branchId = scopeNodeId)",
+          "Navigate to Expenses; scope persists and the expenses list reflects the narrowed branch (empty-state expected, MOVE has 0 expenses)"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Proves the localStorage-backed scope:{userId}:{orgId} key survives route changes and that the same RBAC ceiling (MOVE-only nodes) governs every page — the isolation guarantee made observable without a second tenant. All read-only; reset scope to 'All' at the end to leave the session clean. Cross-tenant denial (org B) and branch-scoped-staff subset remain blocked on PROD (need seeded staff/second tenant) — keep those as the skipped API specs."
+      }
+    ]
+  },
+  {
+    "module": "customers",
+    "routes": [
+      "/dashboard/customers/v2/view (file: apps/web/src/routes/_authenticated/dashboard/_layout/customers/v2/view.tsx)",
+      "/dashboard/customers/$id (legacy detail route)",
+      "/dashboard/customers/walk-in/view (separate walk-in module)"
+    ],
+    "procedures": [
+      {
+        "name": "customerDirectory.list",
+        "type": "query"
+      },
+      {
+        "name": "customerDirectory.getStats",
+        "type": "query"
+      },
+      {
+        "name": "customerDirectory.getById",
+        "type": "query"
+      },
+      {
+        "name": "customerProfiles.get",
+        "type": "query"
+      },
+      {
+        "name": "customerProfiles.listLeadSources",
+        "type": "query"
+      },
+      {
+        "name": "customerProfiles.upsert",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.upsertForCustomer",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.createUnclaimed",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.updateName",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.updateEmail",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.softDelete",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.restore",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.addEmailAndDispatchMagicLink",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.resendMagicLink",
+        "type": "mutation"
+      },
+      {
+        "name": "customerProfiles.sendClaimLink",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      }
+    ],
+    "screens": [
+      "Customer Directory page: sticky header 'Customers / Directory' with ScopeSwitcher + 'Add Customer' button, split-pane (filter sidebar left, content pane right) on #f3f3f3 bg",
+      "Filter sidebar: 'Customers' title with total-count badge, 'Search customers…' box, 'Show deleted' checkbox (data-testid=show-deleted-toggle), avatar-initial customer rows",
+      "Directory empty/placeholder pane (DirectoryEmptyPane): 'No customers yet' / 'Invite your first customer to get started' when no selection; also variants 'No organization selected', 'Access denied', 'Loading customers…'",
+      "Sidebar empty state: 'No customers' / 'Invite customers to see them here' (or 'No matches' when searching)",
+      "Add Customer dialog: 'CUSTOMER DIRECTORY' eyebrow + 'Add Customer' title, fields First/Last name, Phone, Email(optional), Branch/Scope select, Date of Birth, Notes, 'Create Profile' submit + Cancel",
+      "Customer Profile Panel (only when a customer is selected): KPI tiles 'Active Packages' & 'Appointments', tabs Overview / Packages / Payments / Appointments / Logs, editable Profile section, Delete/Restore button, 'Delete customer?' confirmation dialog",
+      "ScopeSwitcher dropdown (country/state/branch scope narrowing) in the page header"
+    ],
+    "existingCoverage": "No existing e2e coverage for the customers module. e2e-web/ contains only: a settings/email VIDEO suite (9 journey JSONs under e2e-web/settings/, treated as covered) and a POS installment read-path screenshot test (run-results.pos-migration.json). Grep for 'customer'/'directory' across e2e-web/ returns no customer journey files — only an incidental hit inside run-results.pos-migration.json. The customer-profiles router does have backend unit/integration tests (apps/server/src/routers/customer-profiles.test.ts, customer-profiles.integration.test.ts) but those are not browser E2E.",
+    "gaps": [
+      "Directory page render against the real MOVE tenant with 0 customers — the empty-state ('No customers yet' content pane + sidebar count badge 0) is the core migration proof and is currently untested",
+      "Add Customer wizard open: dialog + Branch/Scope dropdown are populated by hierarchy.listNodes — verifying the wizard opens and the select lists MOVE's real 23-branch hierarchy is untested and is doable read-only (open without submitting)",
+      "ScopeSwitcher narrowing the directory by country/state/branch (scopeNodeId flows into customerDirectory.list as branchId) is untested",
+      "RBAC-conditioned UI: 'Add Customer' button only renders with user_management:create; the route beforeLoad guards customer_management:read — untested",
+      "'Show deleted' toggle (includeDeleted -> customerDirectory.list) is untested, but needs a soft-deleted record to show a visible delta",
+      "Customer Profile Panel (KPI tiles, Overview/Packages/Payments/Appointments/Logs tabs, edit form, Delete/Restore + 'Delete customer?' dialog) is unreachable in prod with 0 customers"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Customer Directory renders empty-state on the migrated MOVE tenant",
+        "journeySteps": [
+          "Authenticated app at /dashboard/customers/v2/view with header reading 'Customers / Directory'",
+          "Filter sidebar showing the 'Customers' title with the count badge at 0",
+          "Content pane showing the empty pane 'No customers yet' / 'Invite your first customer to get started'",
+          "ScopeSwitcher and (permission-gated) 'Add Customer' button both visible in the header"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure read of customerDirectory.list (returns 0 rows for MOVE). This is the migration happy-path proof: the route, RBAC guard (customer_management:read), and directory query all resolve against the real tenant. No writes. Selection lives in the URL (?customer=) so no state leaks."
+      },
+      {
+        "title": "Add Customer wizard opens and lists the real 23-branch hierarchy",
+        "journeySteps": [
+          "Customer Directory page loaded with the 'Add Customer' button in the header",
+          "Add Customer dialog open showing the 'CUSTOMER DIRECTORY' eyebrow and 'Add Customer' title",
+          "Form fields visible: First/Last name, Phone, Email (optional), Branch/Scope, Date of Birth, Notes",
+          "Branch/Scope select open showing MOVE's real branch list (sourced from hierarchy.listNodes)",
+          "Dialog dismissed via Cancel, returning to the empty directory with no record created"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Read-only as long as the spec opens the dialog + opens the Branch select but NEVER clicks 'Create Profile' (that calls customerProfiles.createUnclaimed = a write). Cancel calls form.reset(). Proves hierarchy.listNodes returns the migrated 23-branch/33-node tree. MUST be tagged do-not-submit to keep MOVE pristine."
+      },
+      {
+        "title": "Scope switcher narrows the customer directory",
+        "journeySteps": [
+          "Customer Directory page loaded at 'All' scope showing total count 0",
+          "ScopeSwitcher open showing the country list",
+          "A country (or branch) scope selected and applied",
+          "Directory re-queried within the chosen scope, still showing the empty pane / count 0 for that subtree",
+          "Scope reset back to 'All'"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Read-only. Exercises scopeNodeId -> customerDirectory.list(branchId) wiring and the scope-change effect that clears the selected customer. With 0 customers every scope is empty, so this proves the switcher mechanics + multi-tenant scoping path rather than a data delta."
+      },
+      {
+        "title": "Create a customer profile end-to-end (WRITE — gated)",
+        "journeySteps": [
+          "Add Customer dialog open with required fields highlighted",
+          "First name, Last name and Phone filled and a real branch selected in Branch/Scope",
+          "'Create Profile' submitted, button showing the 'Creating…' state",
+          "Success toast 'Customer profile created' shown",
+          "New customer appears as a row in the filter sidebar (count increments to 1)",
+          "Customer Profile Panel opens on the Overview tab for the new customer"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "creates-data",
+        "authorability": "needs-seed-data",
+        "priority": "P3",
+        "notes": "WRITE SPEC — calls customerProfiles.createUnclaimed against the production MOVE tenant, which must stay pristine. Gate behind a write flag and pair with cleanup via customerProfiles.softDelete (and ideally hard-delete) so the directory returns to 0. This is also the only way to make the Profile Panel tabs (Overview/Packages/Payments/Appointments/Logs) reachable, so it doubles as the seed for any deeper profile-panel specs."
+      }
+    ]
+  },
+  {
+    "module": "appointments-classslots-attendance",
+    "routes": [
+      "/dashboard/appointment/view (apps/web/src/routes/_authenticated/dashboard/_layout/appointment/view.tsx — tabbed Schedule + Attendance)",
+      "/dashboard/appointment/class-slots/view (apps/web/src/routes/_authenticated/dashboard/_layout/appointment/class-slots/view.tsx — ClassSlotsPage; ?view=grouped|flat search param)",
+      "/appointment/view (apps/web/src/routes/_authenticated/appointment/view.tsx — legacy month/week AppointmentCalendar, same appointment_management:read guard)"
+    ],
+    "procedures": [
+      {
+        "name": "appointments.list",
+        "type": "query"
+      },
+      {
+        "name": "appointments.listForUser",
+        "type": "query"
+      },
+      {
+        "name": "appointments.getById",
+        "type": "query"
+      },
+      {
+        "name": "appointments.statusHistory",
+        "type": "query"
+      },
+      {
+        "name": "appointments.create",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.update",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.reinstateCredits",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.reschedule",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.materializeOccurrence",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.splitSeries",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.cancelSeries",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.cancelFuture",
+        "type": "mutation"
+      },
+      {
+        "name": "appointments.proposeSchedule",
+        "type": "query"
+      },
+      {
+        "name": "appointments.bulkCreateFromSchedule",
+        "type": "mutation"
+      },
+      {
+        "name": "classSlots.list",
+        "type": "query"
+      },
+      {
+        "name": "classSlots.getById",
+        "type": "query"
+      },
+      {
+        "name": "classSlots.bookingCounts",
+        "type": "query"
+      },
+      {
+        "name": "classSlots.getSignups",
+        "type": "query"
+      },
+      {
+        "name": "classSlots.create",
+        "type": "mutation"
+      },
+      {
+        "name": "classSlots.update",
+        "type": "mutation"
+      },
+      {
+        "name": "classSlots.cancel",
+        "type": "mutation"
+      },
+      {
+        "name": "classSlots.enrollClient",
+        "type": "mutation"
+      },
+      {
+        "name": "classSlots.cancelEnrollment",
+        "type": "mutation"
+      },
+      {
+        "name": "checkIns.list",
+        "type": "query"
+      },
+      {
+        "name": "checkIns.listTodaysBookings",
+        "type": "query"
+      },
+      {
+        "name": "checkIns.getActivePackageForMember",
+        "type": "query"
+      },
+      {
+        "name": "checkIns.recordCheckIn",
+        "type": "mutation"
+      },
+      {
+        "name": "checkIns.recordBulkCheckIn",
+        "type": "mutation"
+      },
+      {
+        "name": "checkIns.deleteCheckIn",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Appointments / Schedule tab — header with Schedule|Attendance tabs + ScopeSwitcher; TrainerSidebar (only when canViewAllTrainers); AppointmentList toolbar (prev/next/Today, Day|Week|List pill, Filters, Export, New Booking)",
+      "Appointments / Schedule empty state — 'No appointments today' (day) / 'No appointments in <month>' (list) with New Booking CTA",
+      "Appointments / Attendance tab — filters band (ScopeSwitcher + Date picker); KPI tiles (Total Check-ins, Attended, Drop-ins, No-shows); Today's Bookings panel; Drop-in form; Today's Check-ins log; each with its own empty state",
+      "Add Appointment modal (New Booking) — AppointmentFormContent with Service/Staff/Room/Client/DateTime pickers + RepeatRule (recurrence) section",
+      "Appointment dialogs — AppointmentDetailDialog, EditAppointmentDialog, RescheduleDialog, AttendanceDialog (mark attended/no-show), NoShowFollowupDialog, ScheduleSessionsPanel",
+      "Class Slots page — 'Capacity Overview' header, ScopeSwitcher, search box, New Class Slot button; KPI tiles (Total Slots, Avg Fill Rate, Waitlisted, Projected Revenue); ClassSlotsTable with status-filter pills (All/Open/Full/Waitlist)",
+      "Class Slots dialogs — CreateClassSlotDialog, EditClassSlotDialog, CancelClassSlotDialog, SignupsDialog (view signups + enroll/remove customer)",
+      "Legacy Appointment calendar — AppointmentCalendar month/week grid at /appointment/view"
+    ],
+    "existingCoverage": "None for this module. The e2e-web/ suite only contains 9 settings/email video journeys (e2e-web/settings/*.journey.json) and a POS installment read-path screenshot run (run-results.pos-migration.json). strategy-analysis.json and run-results.json contain no appointment, class-slot, attendance, or check-in entries. No journey exercises any of the appointments/classSlots/checkIns procedures or either /dashboard/appointment route.",
+    "gaps": [
+      "No test proves the /dashboard/appointment/view Schedule tab renders post-migration (day/week/list view modes, empty-state, trainer sidebar gating).",
+      "No test proves the Attendance tab renders — KPI tiles, Today's Bookings empty state, Drop-in form, Today's Check-ins log empty state (checkIns.list + checkIns.listTodaysBookings).",
+      "No test proves the Class Slots capacity overview renders — KPIs, table, status filter, search (classSlots.list).",
+      "No test exercises the ScopeSwitcher narrowing data by country/state/branch on either Schedule, Attendance, or Class Slots (multi-tenant scope behavior is a domain rule).",
+      "No test opens the New Booking appointment wizard to confirm Service/Staff pickers populate from migrated data while the Client picker is empty (0 customers).",
+      "No test opens the New Class Slot creation wizard to confirm migrated services (70) and coaches (114) are selectable.",
+      "Write paths fully untested: classSlots.create/update/cancel, classSlots.enrollClient/cancelEnrollment, appointments.create/update/reschedule, checkIns.recordCheckIn/recordBulkCheckIn/deleteCheckIn — all blocked from prod because MOVE has 0 customers and must stay pristine.",
+      "Tab switching between Schedule and Attendance (ScopeSwitcher only shows on Schedule) is unverified."
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Appointments page renders Schedule + Attendance tabs (empty-state happy path)",
+        "journeySteps": [
+          "Appointments page open on the Schedule tab with the Day/Week/List toolbar and 'New Booking' button",
+          "Empty day agenda showing 'No appointments today' with the New Booking call-to-action",
+          "View-mode pill switched to List showing the month-grouped empty state 'No appointments in <month>'",
+          "Attendance tab selected showing the four KPI tiles (Total Check-ins, Attended, Drop-ins, No-shows) all at 0",
+          "Today's Bookings panel showing the 'No bookings today' empty state",
+          "Today's Check-ins log showing the 'No check-ins yet today' empty state"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render/navigation across appointments.list, checkIns.listTodaysBookings and checkIns.list. With 0 customers every panel resolves to its empty state, which is exactly the migration proof. Attendance branch query needs a branchId — it falls back to topAccessibleNodeId, so the franchisee owner login loads bookings/check-ins without picking a branch. Safe: no writes."
+      },
+      {
+        "title": "Class Slots capacity overview renders with KPIs, table and filters",
+        "journeySteps": [
+          "Class Slots page open showing the 'Capacity Overview' eyebrow, 'Class Slots' header and Scope switcher",
+          "Four KPI tiles rendered: Total Slots, Avg Fill Rate, Waitlisted, Projected Revenue",
+          "Capacity table rendered with the status-filter pills (All / Open / Full / Waitlist)",
+          "Status filter set to 'Open' narrowing the table",
+          "Search box filtered by a service name, table updating"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Drives classSlots.list (+ services.list, members.list for name resolution). KPIs are computed client-side so they render even with zero slots; if MOVE has no class slots the table shows its empty state and KPIs read 0 — still a valid render proof. Status-filter and search are pure client-side state, no network writes."
+      },
+      {
+        "title": "New Class Slot wizard opens showing migrated services and coaches (config-display, no save)",
+        "journeySteps": [
+          "Class Slots page open with the 'New Class Slot' button visible",
+          "Create Class Slot dialog open showing the empty slot form",
+          "Service dropdown open listing migrated PT packages (e.g. '1-ON-1 PERSONAL TRAINING')",
+          "Instructor dropdown open listing coaches",
+          "Branch / date / start-end time / capacity fields visible and filled in",
+          "Dialog dismissed without submitting — no slot created"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Opening CreateClassSlotDialog only reads services.list (70 active) and members.list (114 coaches) — proves reference data migrated. MUST stop before pressing the create button (classSlots.create is a write). Authorable on MOVE because it stays read-only; gate the suite so the submit step is never auto-clicked here."
+      },
+      {
+        "title": "Create then cancel a class slot end-to-end (gated write lifecycle)",
+        "journeySteps": [
+          "Create Class Slot dialog filled with a service, branch, date, time and capacity",
+          "Submit producing the 'Class slot created successfully' toast",
+          "New slot row visible in the capacity table with 0 / capacity spots booked",
+          "Signups dialog open for the new slot showing zero enrollments (0 customers)",
+          "Cancel Class Slot dialog open with a cancellation reason entered",
+          "Slot cancelled — 'Class slot cancelled' toast and the row marked cancelled"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "creates-data",
+        "authorability": "needs-seed-data",
+        "priority": "P3",
+        "notes": "Exercises classSlots.create, classSlots.getSignups and classSlots.cancel (no real customer enrolled, so commission/credits untouched). WRITE SPEC — MOVE is the pristine client tenant; do NOT run on app.avantej.com. Run only against a disposable/seed tenant and tag behind a write gate. The create+cancel pair self-cleans but still mutates rows, hence not P1/P2."
+      }
+    ]
+  },
+  {
+    "module": "trainers",
+    "routes": [
+      "/dashboard/trainers/view (single real page; ?tab=trainers|tiers|availability switches the in-page tab, default tab=\"trainers\")",
+      "/dashboard/trainers/tiers (redirect-only -> /dashboard/trainers/view?tab=tiers)",
+      "/dashboard/trainers/availability (redirect-only -> /dashboard/trainers/view?tab=availability)"
+    ],
+    "procedures": [
+      {
+        "name": "members.list (role:\"trainer\", hierarchyScopeId from scope switcher) — drives the roster",
+        "type": "query"
+      },
+      {
+        "name": "memberProfiles.get (fan-out per member for displayName/specialization/phone/certs)",
+        "type": "query"
+      },
+      {
+        "name": "trainerTiers.list",
+        "type": "query"
+      },
+      {
+        "name": "trainers.weeklyStatsBatch (session counts for the whole left list)",
+        "type": "query"
+      },
+      {
+        "name": "trainers.weeklyStats (selected trainer KPI tiles)",
+        "type": "query"
+      },
+      {
+        "name": "trainers.weeklySchedule (detail panel This Week's Schedule)",
+        "type": "query"
+      },
+      {
+        "name": "trainers.customers (detail panel Customers card)",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.listByBranch (availability weekly grid)",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.getUtilisation (utilisation bars)",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.list",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.getComputedSlots",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.getConflicts",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.listExceptions",
+        "type": "query"
+      },
+      {
+        "name": "trainerAvailability.coverageForPreferredTimes",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listNodes (Assign Branch dialog branch options)",
+        "type": "query"
+      },
+      {
+        "name": "members.create (Invite Trainer)",
+        "type": "mutation"
+      },
+      {
+        "name": "memberProfiles.upsert (Invite/Edit trainer profile)",
+        "type": "mutation"
+      },
+      {
+        "name": "members.suspend",
+        "type": "mutation"
+      },
+      {
+        "name": "members.reactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "members.updateScope (Assign Branch)",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.create",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.update",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.deactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.deleteTier",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.reactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerTiers.assignToMember (Change Tier)",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.upsert",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.create",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.update",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.delete",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.addException",
+        "type": "mutation"
+      },
+      {
+        "name": "trainerAvailability.deleteException",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Trainers tab — master-detail: LEFT panel = ScopeSwitcher (country->state->branch) + search box + tier-filter pills (All + one per tier) + roster rows (avatar initials, name, tier badge, 'N sess this wk') + 'Invite Trainer' button",
+      "Trainers tab — RIGHT detail panel: profile header (80px avatar, name, tier badge, Active/Inactive badge, email/phone/branch/joined) + action buttons (Change Tier, Assign Branch, Suspend/Reactivate) + 4 KPI tiles (Sessions This Week, Commission YTD, Revenue Generated, Utilisation) + This Week's Schedule card + Customers card + Certifications card + Contact & Branch card",
+      "Trainers tab — 'No trainer selected' empty placeholder (right panel) and 'No trainers yet'/'No trainers match' left-list empty state",
+      "Tiers tab — 'New Tier' button, status filter tabs (All/Active/Inactive with counts), tiers table (Name/Rank/Status/Actions with Deactivate or Reactivate+Delete), optional missing-commission-rate warning banner",
+      "Availability tab — sub-tab bar (Recurring Availability / Intake Availability)",
+      "Availability > Recurring — weekly grid (Trainer column + Mon..Sun), utilisation bar+%, 'Xh booked / Yh avail', slot pills (Available/Blocked/Time Off) + legend, 'Block Time' and 'Add Exception' buttons",
+      "Availability > Intake — per-trainer rows with 'Set Intake Schedule' button",
+      "Dialogs/sheets: TrainerFormDialog (Invite/Edit), ChangeTierDialog, AssignBranchDialog, TrainerAvailabilitySheet (open on grid row), AddExceptionDialog, CoachIntakeEditor, CreateTierDialog, DeactivateTierDialog, DeleteTierDialog"
+    ],
+    "existingCoverage": "No E2E coverage of the trainers module. The e2e-web suite only contains settings/email (9 video journeys under e2e-web/settings/, treated as covered) and one POS screenshot read-path (e2e-web/pos/pos-installment-sale/). e2e-web/strategy-analysis.json and run-results.json contain no trainer entries (the only 'trainer' string match is incidental, in run-results.pos-migration.json). There is a Vitest unit test apps/web/src/__tests__/routes/trainers.test.tsx, but no agent-driven screenshot/video E2E exists for /dashboard/trainers/view.",
+    "gaps": [
+      "Roster render proof: /dashboard/trainers/view returns 114 coaches from members.list(role:trainer) with tier badges and per-trainer session counts (trainers.weeklyStatsBatch) — the core migration proof for this module, currently untested",
+      "Trainer detail panel render: selecting a coach loads trainers.weeklyStats + weeklySchedule + customers; with prod reality (0 customers, 0 sales) this must show 0/RM0 KPIs, 'No sessions', and Customers empty state without errors",
+      "Scope switcher isolation: ScopeSwitcher narrowing the roster by country/state/branch (members.list hierarchyScopeId) across 23 branches — proves the scope-narrows-data domain rule, untested",
+      "Tier filter pills: clicking a tier pill narrows the visible roster client-side, untested",
+      "Tiers tab config-display: trainerTiers.list renders the tier table with Active/Inactive filter counts — read-only config proof, untested",
+      "Availability weekly grid render: trainerAvailability.listByBranch + getUtilisation render the 7-day grid, utilisation bars and slot legend — untested",
+      "Wizard-open (no submit) coverage: Invite Trainer, Change Tier, Assign Branch, New Tier, and the availability sheet all open editable forms — render-only verification is untested",
+      "Write paths (members.create, memberProfiles.upsert, members.suspend/reactivate/updateScope, trainerTiers.create/deactivate/deleteTier/reactivate/assignToMember, trainerAvailability.* writes) are entirely untested but MUST stay gated on the pristine MOVE tenant"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Trainers roster renders 114 coaches with tiers, session counts, and detail panel",
+        "journeySteps": [
+          "Login as franchisee@gmail.com lands on the dashboard",
+          "Trainers tab open at /dashboard/trainers/view showing the left roster populated with coach rows (avatars, names, tier badges)",
+          "First coach auto-selected, right detail panel showing profile header with tier + Active badge",
+          "KPI tiles visible: Sessions This Week, Commission YTD, Revenue Generated, Utilisation (zeros/RM0 expected on pristine MOVE)",
+          "Detail panel Customers card showing 'No customers yet' and This Week's Schedule showing 'No sessions' empty states",
+          "Invite Trainer dialog opened from the left panel button (form only, not submitted)"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render/migration proof against members.list(role:trainer)+trainerTiers.list+trainers.weeklyStatsBatch/weeklyStats/weeklySchedule/customers. Route guard requires user_management:read (owner has it). Customers/schedule/commission show empty/zero because prod has 0 customers and 0 sales_orders — captions should state the zero values honestly. Final step only OPENS the Invite dialog; do NOT submit (submit would call members.create)."
+      },
+      {
+        "title": "Scope switcher narrows trainer roster by branch (multi-tenant scope rule)",
+        "journeySteps": [
+          "Trainers tab at All scope showing the full coach roster",
+          "ScopeSwitcher open showing the country -> state -> branch hierarchy list",
+          "A specific branch selected in the switcher",
+          "Roster re-queried and narrowed to that branch's coaches only",
+          "Selected branch coach's detail panel showing its branch name in Contact & Branch"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves the 'scope switcher narrows data by country/state/branch' domain rule using members.list hierarchyScopeId across the 23 branches / 33 hierarchy nodes. Fully read-only (only changes client scope + re-queries). Strong isolation/migration signal."
+      },
+      {
+        "title": "Tiers tab config display with Active/Inactive filter (read-only)",
+        "journeySteps": [
+          "Switch to the Tiers tab via the in-page tab control",
+          "Tiers table rendered showing tier Name, Rank, and Status (Active/Inactive)",
+          "Status filter set to Active showing only active tiers with the count badge",
+          "Status filter set to Inactive showing inactive tiers (or empty state)",
+          "New Tier dialog opened showing the create form (not submitted)"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Config-display proof of trainerTiers.list (includeInactive:true). Tier data exists (114 coaches carry trainer tiers). Final step only opens CreateTierDialog; do NOT submit (would call trainerTiers.create). Deactivate/Delete/Reactivate buttons must NOT be clicked on the MOVE tenant."
+      },
+      {
+        "title": "Availability weekly grid + intake list render (read-only)",
+        "journeySteps": [
+          "Switch to the Availability tab",
+          "Recurring Availability grid showing Trainer column + Mon..Sun with utilisation bars and slot pills",
+          "Slot legend visible (Available / Blocked / Time Off)",
+          "Open a trainer's availability sheet by clicking a grid row (sheet shown read-only)",
+          "Switch to the Intake Availability sub-tab showing per-trainer rows with 'Set Intake Schedule' buttons"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "needs-seed-data",
+        "priority": "P2",
+        "notes": "Renders trainerAvailability.listByBranch + getUtilisation. authorability=needs-seed-data because recurring slots may not be configured for MOVE coaches yet — if listByBranch returns rows with no slots the grid shows 'Off' everywhere and utilisation '—%', which is still a valid render but a weaker proof; verify live before authoring. Open the availability sheet and the intake editor for VIEW only — do NOT save (would call trainerAvailability.upsert/update or coachIntake writes)."
+      }
+    ]
+  },
+  {
+    "module": "services-catalog",
+    "routes": [
+      "/dashboard/service/view (main tabbed shell; validateSearch tab defaults to 'services')",
+      "/dashboard/service/view?tab=services",
+      "/dashboard/service/view?tab=categories",
+      "/dashboard/service/view?tab=rooms",
+      "/dashboard/service/view?tab=promotions",
+      "/dashboard/service/view?tab=pricing",
+      "/dashboard/service/view?tab=installments",
+      "/dashboard/service-category/view (legacy route; makeTabRedirect -> service/view?tab=categories)",
+      "/dashboard/rooms/view (legacy route; redirect -> service/view?tab=rooms)",
+      "/dashboard/promotions/view (legacy route; redirect -> service/view?tab=promotions)"
+    ],
+    "procedures": [
+      {
+        "name": "services.list",
+        "type": "query"
+      },
+      {
+        "name": "services.getById",
+        "type": "query"
+      },
+      {
+        "name": "services.create",
+        "type": "mutation"
+      },
+      {
+        "name": "services.update",
+        "type": "mutation"
+      },
+      {
+        "name": "services.duplicate",
+        "type": "mutation"
+      },
+      {
+        "name": "services.resolvePrice",
+        "type": "query"
+      },
+      {
+        "name": "services.listPriceOverrides",
+        "type": "query"
+      },
+      {
+        "name": "services.setBranchPrice",
+        "type": "mutation"
+      },
+      {
+        "name": "services.expireBranchPrice",
+        "type": "mutation"
+      },
+      {
+        "name": "services.deleteBranchPrice",
+        "type": "mutation"
+      },
+      {
+        "name": "services.revenueShareByCategory",
+        "type": "query"
+      },
+      {
+        "name": "services.avgSessionsSoldPerMonth",
+        "type": "query"
+      },
+      {
+        "name": "services.listWithTrainerTiers",
+        "type": "query"
+      },
+      {
+        "name": "serviceCategories.list",
+        "type": "query"
+      },
+      {
+        "name": "serviceCategories.getById",
+        "type": "query"
+      },
+      {
+        "name": "serviceCategories.create",
+        "type": "mutation"
+      },
+      {
+        "name": "serviceCategories.update",
+        "type": "mutation"
+      },
+      {
+        "name": "serviceCategoryConfig.getByCategoryId",
+        "type": "query"
+      },
+      {
+        "name": "rooms.list",
+        "type": "query"
+      },
+      {
+        "name": "rooms.getById",
+        "type": "query"
+      },
+      {
+        "name": "rooms.create",
+        "type": "mutation"
+      },
+      {
+        "name": "rooms.update",
+        "type": "mutation"
+      },
+      {
+        "name": "rooms.delete",
+        "type": "mutation"
+      },
+      {
+        "name": "promotions.list",
+        "type": "query"
+      },
+      {
+        "name": "promotions.validate",
+        "type": "query"
+      },
+      {
+        "name": "promotions.apply",
+        "type": "mutation"
+      },
+      {
+        "name": "promotions.create",
+        "type": "mutation"
+      },
+      {
+        "name": "promotions.update",
+        "type": "mutation"
+      },
+      {
+        "name": "promotions.deactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.list",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.getById",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.create",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.update",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.setDefault",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.deactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.reactivate",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Tab shell header 'Services / Catalog' with 6 tab pills: Services, Categories, Rooms, Promotions, Pricing, Installment Plans (route guard requirePermission service_management:read)",
+      "Services tab: subheader 'N services · M active', New Service button, ScopeSwitcher (country/state/branch), search box, category filter pills, sortable table (Service/Category/Duration/Price/Commission/Avg-mo/Active/Actions), inline active toggle, bulk action bar (Enable/Disable selected), Load more footer",
+      "Services tab dialog: New Service form (ServiceFormDialogA, mode=create)",
+      "Services tab dialog: Edit Service form (ServiceFormDialogA, mode=edit, fetches services.getById)",
+      "Services tab dialog: Service Detail (ServiceDetailDialogA, opens on row click, read-only with Edit/Delete callbacks)",
+      "Categories tab: DataTable with search + 'Add Category' button, row-click ServiceCategoryDetailDialog, inline 'Commission Config' action column",
+      "Categories tab dialog: Add/Edit Category form (ServiceFormDialog from service-category-form, fetches serviceCategories.getById + serviceCategoryConfig.getByCategoryId)",
+      "Categories tab sheet: Category Commission config (CategoryCommissionForm)",
+      "Rooms tab: Active/All/Inactive filter pills, Create Room button (gated on appointment_management:create), rooms DataTable, EmptyState 'No rooms found'",
+      "Rooms tab dialog: Create/Edit Room (Name/Type/Capacity/Branch combobox/Active) with SERVICE CATALOG eyebrow",
+      "Promotions tab: search, promotion count, New Promotion button, table (Code/Name/Type/Value/Valid From/Valid Until/Usage/Status/Actions), Active/Inactive status badges",
+      "Promotions tab dialogs: New Promotion form, Edit Promotion form, Deactivate confirmation",
+      "Pricing tab: service selector dropdown, Add Override button (disabled until service selected), price overrides table (Branch/Customer Type/Price/Effective From/Until) with Scheduled badge, empty/dashed states",
+      "Pricing tab dialogs: Add Override (ServicePriceOverrideDialog), Expire confirmation, Delete confirmation",
+      "Installment Plans tab: plan cards (already covered by existing read-only spec)",
+      "Guard/empty states: 'Select an organization…' per tab, StatusCallout error+retry on load failure"
+    ],
+    "existingCoverage": "One screenshot test touches this module: e2e-web/pos/pos-installment-sale.journey.json ('Migrated prod stack: MOVE owner login -> POS + installment domain rule', status pass). Its captures 03-services-catalog.png ('Services catalog reads new Neon tenant — 70/70 active services') and 04-installment-plans.png ('installment plans show per-installment amount Quarterly RM300x4 / Half RM600x2, NOT full RM1,200') incidentally render the Services tab and the Installment Plans tab as part of a POS read-path. Per the task brief the Installment-plans read-only spec is considered DONE. The e2e-web/settings/* video suite (9 email tests) is unrelated to this module. No dedicated spec exists for the Categories, Rooms, Promotions, or Pricing tabs, nor for the Services-tab interactions (search/filter/sort/scope-switcher/detail-dialog). All capture is screenshot-based against PROD https://app.avantej.com as franchisee@gmail.com.",
+    "gaps": [
+      "Services tab has no dedicated spec proving the full catalog renders the 70 migrated services with the 'N services · M active' counter, category filter pills, search filter, column sort, and the read-only Service Detail dialog (services.list / services.getById)",
+      "Categories tab is completely untested: the 4 migrated categories list, the read-only ServiceCategoryDetailDialog, and especially the per-category Commission Config sheet (serviceCategoryConfig.getByCategoryId) which is the UI source of the 4 wired category_commission_configs behind the commission-reaches-trainer domain rule",
+      "Rooms tab untested: 23-branch room list under Active/All/Inactive filter, the EmptyState when a scope has no rooms, and the Create Room dialog/branch combobox render (rooms.list + hierarchy.listNodes)",
+      "Promotions tab untested: promotions list vs 'No promotions found' empty state, and the New Promotion dialog form render (promotions.list)",
+      "Pricing tab untested: service selector -> price-overrides table or 'No price overrides configured' empty state, and the Add Override dialog (services.listPriceOverrides)",
+      "Scope switcher (country/state/branch) narrowing on the Services tab is not visually verified — a core multi-tenant domain rule (scope narrows data by branch)",
+      "No spec exercises any catalog write path (create/update/duplicate service, create room, create promotion, set/expire/delete price override) — intentional given MOVE-pristine constraint, but leaves the write surfaces unverified"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Services catalog renders 70 migrated services with filter, sort & read-only detail",
+        "journeySteps": [
+          "Login page on app.avantej.com with MOVE owner franchisee@gmail.com entered",
+          "Dashboard loaded as MOVE Private Fitness owner (23 branches) after auth on migrated Neon stack",
+          "Services tab of /dashboard/service/view showing the '70 services · 70 active' counter and ScopeSwitcher",
+          "Category filter pills row (All / PT / etc.) above the services table",
+          "Search box filtered to '1-ON-1' narrowing the table to the matching PT packages",
+          "Price column sorted descending with '1-ON-1 PERSONAL TRAINING' RM7,200 near the top",
+          "Read-only Service Detail dialog open for a PT package showing price, duration and category"
+        ],
+        "captureCount": 7,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render/list/filter/sort proof that services.list reads the migrated avantej-tenant-move DB. Open the detail dialog (ServiceDetailDialogA) to READ only — do NOT click Edit/Save, the inline Active toggle, Dupe, or any bulk Enable/Disable (all call services.update/duplicate and would mutate the pristine MOVE tenant)."
+      },
+      {
+        "title": "Service categories + per-category commission config display (read-only, commission domain rule)",
+        "journeySteps": [
+          "Categories tab showing the 4 migrated service categories in the table",
+          "Category row hovered revealing the inline 'Commission Config' action",
+          "Commission Config sheet open showing the wired category_commission_config (rate / split) for that category",
+          "Read-only Category Detail dialog opened via row click showing category settings and defaults",
+          "Sheet and dialog closed via Cancel, returning to the intact 4-category list"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves the 4 category_commission_configs migrated and surface in the UI — the configuration source for the 'commission must reach trainer' domain rule. serviceCategoryConfig.getByCategoryId is read on sheet open. Always close the Commission Config sheet and category form with Cancel; never Save (serviceCategories.update / config write)."
+      },
+      {
+        "title": "Rooms, Promotions & Pricing tabs render + wizard-open (read-only)",
+        "journeySteps": [
+          "Rooms tab with Active/All/Inactive filter pills and the rooms list (or 'No rooms found' empty state for the scope)",
+          "Create Room dialog open showing Name / Type / Capacity / Branch-combobox fields (not submitted)",
+          "Promotions tab showing the promotions table or the 'No promotions found' empty state",
+          "New Promotion dialog open showing Code / Type / Value / validity fields (not submitted)",
+          "Pricing tab with the service selector and the 'Select a service…' dashed empty prompt",
+          "Price overrides table (or 'No price overrides configured') after picking a service from the selector"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Covers the three remaining tabs in one walkthrough: rooms.list, promotions.list, services.listPriceOverrides + hierarchy.listNodes. Dialogs are opened only to capture the form render — always close with Cancel. Create Room, Create Promotion and Add Override all WRITE to the tenant, so never submit; selecting a service in Pricing and toggling room filters are read-only."
+      },
+      {
+        "title": "Create + deactivate a Room in services catalog (WRITE — gated, do not run on MOVE)",
+        "journeySteps": [
+          "Rooms tab Create Room dialog filled with a clearly-labelled test room name and a chosen branch",
+          "Toast 'Room created successfully' after submit",
+          "New test room row visible in the rooms table under the Active filter",
+          "Room deactivated via row action and toast 'Room updated successfully' confirming cleanup"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "creates-data",
+        "authorability": "blocked",
+        "priority": "P3",
+        "notes": "rooms.create + rooms.update write to the production tenant; MOVE must stay pristine, so this must be gated (tag) and run ONLY against an isolated Neon branch or a non-MOVE tenant, never live PROD. Rooms are the lowest-blast-radius catalog write (no financial/commission impact) if a write smoke is ever needed; the included deactivate step is best-effort cleanup but still leaves a soft-deleted row."
+      }
+    ]
+  },
+  {
+    "module": "pos-sales-create",
+    "routes": [
+      "/dashboard/sales/create (file route: apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx; beforeLoad guard requirePermission('pos:create'); validateSearch ?customer=<memberId> prefill; renders <PosWorkflow/>)",
+      "/dashboard/sales/$id (post-sale redirect target — sale/receipt detail, separate module)"
+    ],
+    "procedures": [
+      {
+        "name": "pos.recordSale",
+        "type": "mutation"
+      },
+      {
+        "name": "pos.searchCustomers",
+        "type": "query"
+      },
+      {
+        "name": "pos.getReceiptData",
+        "type": "query"
+      },
+      {
+        "name": "customerDirectory.getById",
+        "type": "query"
+      },
+      {
+        "name": "services.list",
+        "type": "query"
+      },
+      {
+        "name": "services.resolvePrice",
+        "type": "query"
+      },
+      {
+        "name": "taxRates.list",
+        "type": "query"
+      },
+      {
+        "name": "taxRates.getDefault",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.list",
+        "type": "query"
+      },
+      {
+        "name": "promotions.validate",
+        "type": "query"
+      },
+      {
+        "name": "members.list",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.getLatest",
+        "type": "query"
+      },
+      {
+        "name": "payments.createSalesOrderPaymentLink",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Full-screen POS wizard page (PosHeader with live clock + back-link; two-column: left = step rail of cards, right = LiveOrderPanel)",
+      "Step 1 Customer card — Member/Walk-in toggle (dark = active), member search combobox, or 'Anonymous Walk-in' card; Continue-to-Items button",
+      "Member search combobox results / 'No customers found' empty state (data-testid pos-member-search-input)",
+      "Step 2 Items card — service catalog Select (member→package), custom line items, qty/unit price, tax-rate Select, notes",
+      "Step 3 Promotions card — promo code input, Apply/Remove, discount line",
+      "Step 4 Payment card — payment method tiles (cash/card/transfer/fpx/stripe/online), cash 'Amount tendered' + Change-due, installment plan Select (only when cart has a package item), preferred-trainer picker",
+      "Step 5 Review & Confirm card — order summary, Sold-by / Lead-source attribution selects, Confirm/Submit",
+      "LiveOrderPanel (right) — running subtotal/discount/tax/total, due-now, and last-receipt snapshot",
+      "Clear-Cart confirmation dialog (ClearCartDialog)",
+      "Permission-denied state ('You don\\'t have permission to record sales') and 'Select an organization to record a sale' guard state"
+    ],
+    "existingCoverage": "SCREENSHOT suite (the relevant one) already has e2e-web/pos/pos-installment-sale (run-results.pos-migration.json, status pass, 4 PNGs): 01-login, 02-dashboard-pos (authenticated MOVE owner, POS New Sale wizard RENDERS, 23 branches), 03-services-catalog (70/70 active services read from new Neon tenant avantej-tenant-move), 04-installment-plans (DOMAIN RULE: plans show per-installment amount — Quarterly RM300x4, Half RM600x2 — NOT full RM1,200). It is read-verified on PROD and explicitly does NOT exercise the committed-sale write path to keep MOVE pristine. So: wizard-open + services catalog read + installment-per-installment rule (static plans view) are COVERED. The e2e-web video suite (settings/email = 9 tests) is unrelated/already-covered. A separate, NON-prod Playwright journey suite under /e2e (pos-walk-in-checkout, pos-card-checkout, pos-cash-tender-with-change, pos-clear-cart-confirm, pos-checkout-installment-schedule, pos-stripe-*, commission-rule-pos-*) exercises the WRITE path but against seeded/local tenants, not PROD MOVE; server unit/integration tests (pos.service.test, pos-commission.integration, pos-installment-parity, sales-tax.integration) cover domain math.",
+    "gaps": [
+      "Member/Walk-in toggle visual states + 'Anonymous Walk-in' card render are not screenshotted on PROD (existing test only shows the wizard at first paint)",
+      "Member search EMPTY STATE on the pristine MOVE tenant (0 customers): typing a query and seeing 'No customers found' proves pos.searchCustomers is wired to the new tenant DB and reflects the 0-customer reality — not yet captured",
+      "Step gating not visually proven: Continue-to-Items disabled until a customer is chosen; Review&Confirm disabled until payment+cashOk",
+      "Walk-in items path (custom line item, manual price) → live LiveOrderPanel totals recompute on the new stack — not captured",
+      "Cash tender auto-fill to due-now and Change-due calculation (changeDueCents) shown live in the wizard — only covered by a local Playwright test, not the PROD screenshot suite",
+      "Promotions step render + 'Cart changed — promo removed' re-validation toast — not captured",
+      "Picking a real catalog service into the cart to show its resolved price (e.g. '1-ON-1 PERSONAL TRAINING' RM7,200 via services.resolvePrice) and the LIVE in-wizard installment recompute — blocked on PROD because the installment picker only appears for package items, which require Member mode + an actual member (MOVE has 0)",
+      "Committed sale write path (pos.recordSale): installment schedule creation + commission_splits reaching the trainer (rotation vs preferred) — intentionally uncovered on PROD"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "POS wizard opens and Member/Walk-in toggle renders for MOVE owner",
+        "journeySteps": [
+          "Logged in as franchisee@gmail.com, MOVE Private Fitness dashboard visible",
+          "Navigate to /dashboard/sales/create — POS wizard renders with the 5-step rail and an empty Live Order panel (RM0.00 totals)",
+          "Step 1 Customer card active with Member toggle highlighted (dark) and the 'Search by name, email or phone' member combobox visible",
+          "Click the Walk-in toggle — 'Anonymous Walk-in / No customer record will be saved for this sale.' card appears",
+          "Continue-to-Items button is enabled in Walk-in mode while the Live Order panel still shows an empty cart"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves the migration's read-only checklist (wizard renders + walk-in/member toggle) directly on PROD. No data created. Complements existing 02-dashboard-pos by exercising the toggle states the prior shot did not."
+      },
+      {
+        "title": "Member customer search shows pristine empty state on MOVE (0 customers)",
+        "journeySteps": [
+          "POS wizard open on Step 1 with Member mode active",
+          "Type a query (e.g. 'ahmad') into the member search box — loading spinner appears in the input",
+          "Results resolve to the 'No customers found / Try a different name, email or phone' empty state (pos.searchCustomers against new tenant DB returns nothing)",
+          "Continue-to-Items button stays disabled because no customer is selected (step gating proven)"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "High-value migration proof: confirms pos.searchCustomers is live on avantej-tenant-move and honestly reflects the 0-customer reality, plus proves step-0 gating. Pure read; the search query is a SELECT only."
+      },
+      {
+        "title": "Walk-in cart builds and cash change-due computes without committing",
+        "journeySteps": [
+          "Step 1 set to Walk-in, then Continue to Items",
+          "Add a custom line item priced RM1,200 — Live Order panel subtotal/total update live",
+          "Skip Promotions, advance to Payment; select Cash — 'Amount tendered' auto-fills to the due-now amount",
+          "Edit Amount tendered up to RM1,500 — 'Change' shows RM300 due back",
+          "Stop at the Review & Confirm step WITHOUT pressing Confirm (no sale recorded)"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Deeper read-only walk that proves client-side totals + cash change math on the migrated stack. Safe because nothing is submitted. Note: the installment plan picker is intentionally NOT reachable here — it only renders for package items (Member-mode service picks), which the pristine 0-member MOVE tenant cannot supply; that live installment recompute is the P3/seed gap below."
+      },
+      {
+        "title": "WRITE — commit a walk-in cash sale (recordSale: installment + commission write path)",
+        "journeySteps": [
+          "Build a cart with a service/package item for a seeded member so the installment picker appears",
+          "Select Quarterly (4x) plan — payment card shows per-installment due-now (RM300), not full RM1,200",
+          "Confirm the sale — pos.recordSale fires and redirects to /dashboard/sales/$id receipt",
+          "Receipt shows the installment schedule (per-installment amounts) and the recorded payment",
+          "Verify commission reached the trainer (preferred vs rotation) via the created commission_splits"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "creates-data",
+        "authorability": "needs-seed-data",
+        "priority": "P3",
+        "notes": "GATED WRITE — must NOT run on PROD MOVE (would create sales_orders/payments/package_instances/installments/commission_splits in the client's pristine tenant). Run only on an isolated Neon-branch / seeded tenant. Requires a seeded client member (MOVE has 0). This is the only spec that exercises pos.recordSale and the commission-reaches-trainer domain rule end-to-end."
+      }
+    ]
+  },
+  {
+    "module": "sales-payments-refunds",
+    "routes": [
+      "/dashboard/sales/view (main: KPI strip + Sales/Installments/Payments/Cancelled/Refunds pill tabs)",
+      "/dashboard/sales/$id (sales-order detail; cancel + refund dialogs)",
+      "/dashboard/sales/create (POS sale wizard — separate POS module, write-heavy)",
+      "/dashboard/cancelled-sales/view (redirect stub -> /dashboard/sales/view?tab=cancelled)"
+    ],
+    "procedures": [
+      {
+        "name": "salesOrders.list",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.getById",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.kpiSummary",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.statusHistory",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.largestToday",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.getLatest",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.create",
+        "type": "mutation"
+      },
+      {
+        "name": "salesOrders.update",
+        "type": "mutation"
+      },
+      {
+        "name": "salesOrders.cancel",
+        "type": "mutation"
+      },
+      {
+        "name": "invoices.list",
+        "type": "query"
+      },
+      {
+        "name": "invoices.getById",
+        "type": "query"
+      },
+      {
+        "name": "invoices.getDetail",
+        "type": "query"
+      },
+      {
+        "name": "invoices.paymentStatusHistory",
+        "type": "query"
+      },
+      {
+        "name": "invoices.create",
+        "type": "mutation"
+      },
+      {
+        "name": "invoices.update",
+        "type": "mutation"
+      },
+      {
+        "name": "cancelledSales.list",
+        "type": "query"
+      },
+      {
+        "name": "cancelledSales.getById",
+        "type": "query"
+      },
+      {
+        "name": "cancelledSales.exportCsv",
+        "type": "query"
+      },
+      {
+        "name": "refunds.list",
+        "type": "query"
+      },
+      {
+        "name": "refunds.getById",
+        "type": "query"
+      },
+      {
+        "name": "refunds.request",
+        "type": "mutation"
+      },
+      {
+        "name": "refunds.approve",
+        "type": "mutation"
+      },
+      {
+        "name": "refunds.reject",
+        "type": "mutation"
+      },
+      {
+        "name": "refunds.process",
+        "type": "mutation"
+      },
+      {
+        "name": "refunds.createPartial",
+        "type": "mutation"
+      },
+      {
+        "name": "refunds.bulkApprove",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.listUpcoming",
+        "type": "query"
+      }
+    ],
+    "screens": [
+      "Sales / Orders page header — Sales / Orders breadcrumb, ScopeSwitcher, Export CSV button, New Sale button (links to /dashboard/sales/create)",
+      "Overview KPI strip — 4 tiles (Revenue, Outstanding, Refunded, Net Collected) with Today/Week/Month PeriodSelector",
+      "Pill tab bar — Sales Orders, Installments (perm service_management:read), Payments, Cancelled, Refunds (perm refund_management:read), each with count badge",
+      "Sales Orders tab — FilterBar (search/status/date), refund-status pill row (All/None/Pending/Partial/Processed), SalesDataTable with 'No sales found' empty state + New Sale action",
+      "Payments tab — PaymentDataTable, 'No payments found' empty state",
+      "Cancelled tab — toolbar (text search, reason-category select, Date range toggle with from/to inputs, Export CSV), table or 'No cancelled sales' empty state, click-to-expand rows (CancelledExpandedRow)",
+      "Refunds tab — search box, status pills (All/Pending/Approved/Rejected/Processed), Pending section, Processed section, 'No refunds found' empty state, BulkApproveBar",
+      "Refund dialogs — RejectDialog, ProcessRefundDialog, AuditTrailDialog (opened from QueueRow)",
+      "Installments tab — due-soon/overdue read view (covered by existing POS installment screenshot test)",
+      "Sales order detail (/sales/$id) — status badge, line items, StatusHistoryCard, CancelSaleDialog, RequestRefundDialog, PartialRefundDialog, PrintReceiptDialog"
+    ],
+    "existingCoverage": "The screenshot/video e2e-web suite has NO coverage of this module — e2e-web only contains settings/ (9 email VIDEO journeys, treated as covered) and pos/pos-installment-sale/ (a screenshot read-path test). A SEPARATE legacy Playwright harness under e2e/ does touch this module: e2e/sales-cancellation-list.journey.spec.ts (asserts the Cancelled pill tab renders and the old /cancelled-sales/view redirects to ?tab=cancelled), e2e/sales-cancellation-kpi.journey.spec.ts, e2e/journeys/40-refunds.admin.journey.spec.ts, e2e/customer-journey-refund.journey.spec.ts, and e2e/gap-prove-f07-refund-lock.spec.ts. Those are a different runner (bunx playwright --project=journeys-e2e), several require seed data, and they are not part of the agent-driven screenshot suite this strategy targets. Router-level unit tests exist (packages/api/src/routers/refunds/refunds.router.test.ts, sales-orders/query.procedures.test.ts, invoices.test.ts) but are not E2E.",
+    "gaps": [
+      "No e2e-web screenshot proof that /dashboard/sales/view renders at all on the migrated MOVE tenant (salesOrders.list + salesOrders.kpiSummary returning 0-sales empty state)",
+      "KPI strip empty-state values unverified: with 0 sales all tiles should read RM0.00 / 'all clear' for the selected period",
+      "Tab navigation (Sales Orders -> Payments -> Cancelled -> Refunds) and each empty state ('No sales found', 'No payments found', 'No cancelled sales', 'No refunds found') is untested in the screenshot suite",
+      "Sales Orders tab FilterBar + refund-status pill row render and re-query behaviour unproven",
+      "Cancelled tab toolbar (reason-category dropdown, Date range toggle, Export CSV disabled when empty) unproven",
+      "Refunds tab status pills + permission-gated visibility (tab only shows with refund_management:read) unproven",
+      "KPI PeriodSelector (Today/Week/Month) triggering a kpiSummary re-query is untested",
+      "ScopeSwitcher narrowing the sales list by country/state/branch (multi-tenant scope rule) has no screenshot proof on this page",
+      "Write paths — refund request/approve/reject/process lifecycle, bulk approve, partial refund, and sale cancel — have no screenshot coverage (intentionally, since they mutate prod and there is no seed sale to act on)"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Sales & Payments dashboard renders empty-state KPIs and Sales Orders list (migration proof)",
+        "journeySteps": [
+          "Login screen with franchisee@gmail.com credentials entered",
+          "Dashboard loaded after sign-in",
+          "Sales / Orders page header showing ScopeSwitcher, Export CSV and New Sale buttons",
+          "Overview KPI strip showing Month revenue RM0.00, Outstanding 'all clear', Refunded RM0.00, Net Collected RM0.00",
+          "Sales Orders tab active with refund-status pill row and the 'No sales found' empty state + New Sale action",
+          "Period selector switched to Today, KPI tiles re-queried for today's window"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render of /dashboard/sales/view. Proves salesOrders.list + salesOrders.kpiSummary work post-migration on the 0-sales MOVE tenant. No seed needed — empty state is the expected, honest result. KPI tiles carry data-testid sales-kpi-revenue/outstanding/refunded/confirmed and the strip is data-testid sales-kpi-strip; tabs are data-testid sales-tab-<value>."
+      },
+      {
+        "title": "Tab walk-through: Payments, Cancelled and Refunds empty states",
+        "journeySteps": [
+          "Sales Orders tab with the full pill bar (Sales Orders, Payments, Cancelled, Refunds) visible",
+          "Payments tab selected showing the 'No payments found' empty table",
+          "Cancelled tab toolbar with reason-category dropdown and Date range toggle, body showing 'No cancelled sales'",
+          "Cancelled tab Date range toggle expanded showing from/to date inputs",
+          "Refunds tab status pills (All/Pending/Approved/Rejected/Processed) with the 'No refunds found' empty queue"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Exercises invoices.list (Payments), cancelledSales.list (Cancelled), refunds.list (Refunds) read paths and confirms the f7290ae9 tab merge. Refunds pill only appears with refund_management:read — franchisee owner has it. Read-only; all tabs land on documented empty states. The cancelled-sales/view redirect to ?tab=cancelled can be added as an extra capture."
+      },
+      {
+        "title": "Scope switcher narrows the Sales list by country/state/branch",
+        "journeySteps": [
+          "Sales Orders tab with ScopeSwitcher closed (organization-wide scope)",
+          "Switcher open showing the country / state / branch hierarchy list",
+          "A specific branch node highlighted in the switcher",
+          "Sales list re-queried for the chosen branch scope with the scope label updated in the header",
+          "KPI strip re-rendered for the narrowed scope"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Validates the multi-tenant scope rule: salesOrders.list/kpiSummary are driven by scopeNodeId which the server expands to the accessible subtree (guardBranchAccessible). MOVE has 23 branches / 33 hierarchy nodes so the switcher list is populated even with 0 sales. List stays empty but the scope label and query key change — read-only and easy."
+      },
+      {
+        "title": "Refund lifecycle: request -> approve -> process (WRITE — gated)",
+        "journeySteps": [
+          "Sales order detail page with Request Refund button visible",
+          "Request Refund dialog open with amount and reason filled",
+          "Refunds tab Pending section showing the new pending refund awaiting decision",
+          "Approve action applied, refund moves to Approved",
+          "Process Refund dialog open selecting a refund method (e.g. cash)",
+          "Refunds tab Processed section showing the completed refund"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "creates-data",
+        "authorability": "blocked",
+        "priority": "P3",
+        "notes": "WRITE SPEC — DO NOT run against MOVE prod unsupervised. Requires seed: a committed sales order + captured payment (MOVE has 0 sales_orders / 0 payments), then refunds.request (inserts a refund row) -> refunds.approve -> refunds.process which writes back to payments.refundAmount and/or sales_orders.cancelledAmount (mutates-existing). Touches commission_splits and audit trail. Author only on a throwaway/staging tenant or behind a write-gate tag; listed so the lifecycle coverage gap is visible and explicitly gated."
+      }
+    ]
+  },
+  {
+    "module": "commissions-payouts",
+    "routes": [
+      "/dashboard/commissions/view (file route _authenticated/dashboard/_layout/commissions/view.tsx; validateSearch tab=mine|all|review|disputes|liability|payouts, recipientId)",
+      "/dashboard/commissions/view?tab=payouts (Payouts tab, sub-tabs all|per-recipient)",
+      "/dashboard/commissions/view?tab=all (All Commissions ledger)",
+      "/dashboard/commissions/view?tab=review (Review queue)",
+      "/dashboard/commissions/view?tab=disputes (Disputes queue)",
+      "/dashboard/commissions/view?tab=liability (Liability)",
+      "/dashboard/commissions/my (sibling MyCommissions route)"
+    ],
+    "procedures": [
+      {
+        "name": "commissionSplits.getMyCommissions",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.listLedger",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.list",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.getByAppointment",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.liabilitySummary",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.liabilityByStaff",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.exportLiabilityCsv",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.listPendingReview",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.listContested",
+        "type": "query"
+      },
+      {
+        "name": "commissionSplits.approve",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.markPaid",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.markPaidBatch",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.markPaidById",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.void",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.voidById",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.createManualAdjustment",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.resolveReview",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.contest",
+        "type": "mutation"
+      },
+      {
+        "name": "commissionSplits.resolveDispute",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.list",
+        "type": "query"
+      },
+      {
+        "name": "payouts.recipientSummary",
+        "type": "query"
+      },
+      {
+        "name": "payouts.previewBatch",
+        "type": "query"
+      },
+      {
+        "name": "payouts.runBatch",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.processForRecipient",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.markPaid",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.markFailed",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.retry",
+        "type": "mutation"
+      },
+      {
+        "name": "payouts.cancel",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Commissions hub header (Finance / Commissions breadcrumb + pill tab bar: My Commissions, All Commissions, Review[badge], Disputes[badge], Liability, Payouts + 'New Adjustment' button)",
+      "My Commissions tab (mine-tab.tsx): default tab, KPIs 'To Be Paid'/'Pending'/'Approved'/'Total Earned', searchable ledger, empty 'No commission splits found.'",
+      "All Commissions tab (all-tab.tsx): status filter pills All/Pending/Approved/Paid/Void, ScopeSwitcher, staff search, ledger table, Approve actions (commission_management:approve), empty 'No commission splits found.'",
+      "Review tab (review-tab.tsx): pending_review adjustments list with Approve/Reject confirm dialog; red count badge on pill",
+      "Disputes tab (disputes-tab.tsx): contested splits with Uphold/Void/Adjust confirm dialog, empty 'No disputed commissions'",
+      "Liability tab (liability-tab.tsx): KPI band 'Approved (Unpaid)'/'Paid'/'Manual Adj.'/'Net Payable', by-staff table, ScopeSwitcher, 'Export CSV' button, empty 'No commission activity in the selected period.'",
+      "Payouts tab (payouts-tab.tsx): KPI band 'Disbursed (This Month)'/'Pending Recipients'/'Avg Payout'/'Last Batch', ScopeSwitcher, sub-tab pills All Payouts | Per Recipient, 'Run Batch' button",
+      "Payouts > All Payouts table (AllPayoutsTable.tsx): Date/Recipient/Gross/Deductions/Net/Reference/Status columns + row actions, empty 'No payouts yet'",
+      "Payouts > Per Recipient panel (PerRecipientPanel.tsx): recipient sidebar with search, lifetime KPIs, current-cycle breakdown, 'Process Pending' button, empty 'Select a recipient to view their ledger' / 'No recipients'",
+      "Run Batch drawer (RunBatchDrawer): staff multi-select + period + payment method (gated commission_payout:process)",
+      "Manual Adjustment dialog (manual-adjustment-dialog.tsx): staff/amount/note/target fields (gated commission_payout:create)",
+      "Dispute dialog (dispute-dialog.tsx) for staff contesting their own split"
+    ],
+    "existingCoverage": "None for commissions or payouts. e2e-web/strategy-analysis.json contains only 7 settings/email areas; e2e-web/run-results.json is empty of modules. The only screenshot suite is e2e-web/pos/pos-installment-sale (login -> POS -> services catalog -> installment plans read-path, 4 PNGs) and a settings/email video suite (9 *.journey.json). The commissions/view route, all six tabs, the payouts sub-tabs, Run Batch drawer, Manual Adjustment dialog, and every commissionSplits.*/payouts.* procedure are untested end-to-end.",
+    "gaps": [
+      "My Commissions ledger rendering with real rows and the To Be Paid/Pending/Approved/Total Earned KPIs computing from data (blocked on MOVE: commission_splits=0)",
+      "All Commissions status-filter pills actually narrowing the ledger + bulk Approve action (commissionSplits.approve, write, gated commission_management:approve; needs pending splits)",
+      "Review queue Approve/Reject of pending_review manual adjustments (commissionSplits.resolveReview, write; needs adjustments seeded)",
+      "Disputes queue Uphold/Void/Adjust resolution (commissionSplits.resolveDispute, write; needs contested splits)",
+      "Liability Export CSV download (commissionSplits.exportLiabilityCsv) and batch Mark Paid (commissionSplits.markPaidBatch, write; needs approved splits)",
+      "Payouts Run Batch submission creating payout rows + marking splits paid (payouts.runBatch + processCommissionReversals, write; needs approved splits and active staff)",
+      "Per-recipient 'Process Pending' (payouts.processForRecipient, write) and recipientSummary lifetime stats (needs existing payouts)",
+      "Individual payout lifecycle transitions markPaid/markFailed/retry/cancel (payouts.* writes; needs payout rows)",
+      "Manual Adjustment submission (commissionSplits.createManualAdjustment, write; requires exactly one target appointment/salesOrder/package, all of which are 0 in MOVE)",
+      "Staff self-dispute flow (commissionSplits.contest) from a trainer login on their own split",
+      "ScopeSwitcher actually narrowing ledger/liability/payouts by country/state/branch (needs multi-branch data)",
+      "Strict multi-tenant isolation: a second tenant's payouts/commissions never appear for MOVE (needs a second tenant fixture)",
+      "Trainer-tier rotation vs requested commission reaching the correct trainer (domain rule; needs committed sale producing splits)"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Commissions hub renders all six tabs with empty ledgers (migration smoke)",
+        "journeySteps": [
+          "Login at app.avantej.com as franchisee@gmail.com landing on the dashboard",
+          "Commissions hub open at /dashboard/commissions/view with My Commissions tab active and the To Be Paid / Pending / Approved / Total Earned KPIs",
+          "All Commissions tab showing status pills (All/Pending/Approved/Paid/Void) and the 'No commission splits found.' empty table",
+          "Review tab open with no pending-review adjustments and no red count badge",
+          "Disputes tab showing the 'No disputed commissions' empty state",
+          "Liability tab showing the KPI band and 'No commission activity in the selected period.'",
+          "Payouts tab showing the KPI band and the 'No payouts yet' empty records table"
+        ],
+        "captureCount": 7,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure navigation/render smoke that proves the Neon migration: every commissionSplits.* and payouts.* read query resolves against the migrated MOVE tenant. All tabs are visible because franchisee@gmail.com (org owner) holds commission_management:read and commission_payout:read. With commission_splits=0/sales_orders=0/payouts=0 every tab is its empty-state, so no data is touched. Click tab pills only; do not press New Adjustment/Approve/Run Batch."
+      },
+      {
+        "title": "Payouts tab: empty records, sub-tab toggle, Run Batch drawer & scope switcher open",
+        "journeySteps": [
+          "Payouts tab at /dashboard/commissions/view?tab=payouts with Disbursed (This Month) / Pending Recipients / Avg Payout / Last Batch KPI band",
+          "All Payouts sub-tab active showing 'No payouts yet — Use Run Batch to create payouts from approved commission splits.'",
+          "Per Recipient sub-tab showing empty recipient sidebar ('No recipients') and 'Select a recipient to view their ledger' placeholder",
+          "Scope switcher open showing the country/state/branch hierarchy list",
+          "Run Batch drawer open showing the staff multi-select, period and payment-method fields (not submitted)"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Read-only as long as the Run Batch drawer is only OPENED and dismissed — submitting it calls payouts.runBatch (creates-data, gated commission_payout:process) and MUST NOT be triggered on MOVE. The Run Batch button is visible because the owner holds commission_payout:process; staff options come from members.list (124 members) so the drawer populates. Proves the payouts read surface + scope switcher render post-migration."
+      },
+      {
+        "title": "Liability tab: KPI band, empty-period state, scope switch, Export CSV affordance",
+        "journeySteps": [
+          "Liability tab at /dashboard/commissions/view?tab=liability showing the Approved (Unpaid) / Paid / Manual Adj. / Net Payable KPI band",
+          "By-staff table area showing 'No commission activity in the selected period.' empty state",
+          "Scope switcher open narrowing by country/state/branch",
+          "Export CSV button visible and disabled while the staff table is empty"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Exercises commissionSplits.liabilitySummary + liabilityByStaff (both read queries) and the ScopeSwitcher. commissionSplits.exportLiabilityCsv is itself read-only (generates a CSV string, no DB writes) but the spec only verifies the button state — do not trigger a download. Button is disabled because sortedTrainers.length===0 on MOVE, which is itself a useful assertion for the empty migrated tenant."
+      },
+      {
+        "title": "New Adjustment dialog opens and displays the manual-adjustment form (no submit)",
+        "journeySteps": [
+          "Commissions header showing the 'New Adjustment' button (gated on commission_payout:create)",
+          "Manual Adjustment dialog open showing staff selector, amount, note and target fields",
+          "Target area showing the appointment / sales-order / package options (all empty on MOVE)",
+          "Dialog dismissed via Cancel with no commission split created"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Opening and cancelling the ManualAdjustmentDialog is read-only and proves the write-surface UI renders for the owner (hasPermission commission_payout:create). Submitting would call commissionSplits.createManualAdjustment (creates-data) and is intentionally NOT performed; on MOVE it is also effectively blocked because the form requires exactly one target (appointment/salesOrder/package) and all three counts are 0. If the button is absent for the test login, capture that gating instead and downgrade — this is the only fallback risk."
+      }
+    ]
+  },
+  {
+    "module": "packages",
+    "routes": [
+      "/dashboard/packages/view (canonical; ?tab=memberships|session-packs|installments, default memberships)",
+      "/dashboard/packages/instances/view (LEGACY -> redirects to /dashboard/packages/view?tab=session-packs)",
+      "/dashboard/packages/installments/view (LEGACY -> redirects to /dashboard/packages/view?tab=installments)"
+    ],
+    "procedures": [
+      {
+        "name": "packageInstances.listMemberships",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listAll",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listExpiring",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listAssignedToMe",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listForClient",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.getActiveForClient",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.getById",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.statusHistory",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listPending",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.getAgreement",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listPaymentProofs",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.downloadPaymentProof",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.create",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.assignTrainer",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.bulkAssign",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.reject",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.confirmPayment",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.cancel",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.freeze",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.unfreeze",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.extend",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.signAgreement",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.togglePin",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.uploadPaymentProof",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstanceStaff.list",
+        "type": "query"
+      },
+      {
+        "name": "packageInstanceStaff.assign",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstanceStaff.remove",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstanceStaff.replace",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.adminOverview",
+        "type": "query"
+      },
+      {
+        "name": "installments.listByPackageInstance",
+        "type": "query"
+      },
+      {
+        "name": "installments.listUpcoming",
+        "type": "query"
+      },
+      {
+        "name": "installments.exportUpcomingCsv",
+        "type": "query"
+      },
+      {
+        "name": "installments.getEvents",
+        "type": "query"
+      },
+      {
+        "name": "installments.suggestRefund",
+        "type": "query"
+      },
+      {
+        "name": "installments.getPackageState",
+        "type": "query"
+      },
+      {
+        "name": "installments.confirmPayment",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.manualUnlock",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.adjustCredits",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.processRefund",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.reschedule",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.waive",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.resetOverride",
+        "type": "mutation"
+      },
+      {
+        "name": "installments.setOverdraft",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.list",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.getById",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.getByCode",
+        "type": "query"
+      },
+      {
+        "name": "installmentPlans.create",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.update",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.setDefault",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.deactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "installmentPlans.reactivate",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Packages overview shell with sticky header + 3 segmented nav tabs (Memberships / Session Packs / Installments), breadcrumb Packages / Overview",
+      "Memberships tab: 4 stat cards (Total, Expiring Soon, Frozen, Outstanding RM), customer search box, ScopeSwitcher, 5 filter chips (All Active / Expiring 7 days / Expiring 30 days / Frozen / Expired), table (Customer/Package/Credits/Expires/Outstanding/Status), empty state 'No memberships found'",
+      "Memberships row actions dropdown (Freeze/Unfreeze/Extend/Cancel Package) + CustomerDetailSheet on customer click",
+      "Memberships lifecycle dialogs: Freeze, Unfreeze confirm, Extend, Cancel (write)",
+      "Session Packs tab: stat cards (Active, Credits Used, Revenue), 'Assign Pack' button, table with empty state 'No session packs found'",
+      "Assign Pack create dialog: package (service) select, client ID, source, credits, total price, payment-plan select with per-installment price breakdown, start/expiry dates (write on submit)",
+      "Session Packs row actions: Status History timeline dialog (read), staff assignment dialog (list/assign/remove), Freeze/Unfreeze/Extend/Cancel dialogs",
+      "Installments tab: InstallmentsTable with status filter chips (active/overdue/locked/due_soon), expandable filter panel (search, due-before, due-after, payment-plan dropdown), empty list, error StatusCallout",
+      "Installments PackageDetailDialog (per-installment schedule) and action dialogs: Confirm Payment, Manual Unlock, Adjust Credits, Overdraft, Reschedule, Waive, Request Refund (write)"
+    ],
+    "existingCoverage": "No prod screenshot coverage of /dashboard/packages/view exists in the e2e-web/ suite. e2e-web/ only contains the settings/email video suite (9 tests under e2e-web/settings + e2e-web/videos) and a POS installment read-path screenshot test (e2e-web/pos/pos-installment-sale/*.png) which touches services/installment-plans at checkout, not the packages dashboard. There IS a separate LEGACY Playwright journey suite that exercises this module — e2e/journeys/20-packages-installments.admin.journey.spec.ts, e2e/package-lifecycle-extend|freeze-unfreeze|cancel.journey.spec.ts, e2e/package-payment-approval.journey.spec.ts, e2e/installment-admin-ui.journey.spec.ts, e2e/installment-lifecycle.journey.spec.ts — but these seed + assert via oRPC against a local seeded test org (TEST_ORG_ID), explicitly note the legacy tab-redirects, and are NOT the agent-driven prod screenshot suite against MOVE. So for the migration-proof screenshot strategy, this module is effectively uncovered.",
+    "gaps": [
+      "Canonical /dashboard/packages/view has no prod render proof for the 3-tab shell on the migrated MOVE tenant",
+      "Empty-state rendering: with 0 sold instances + 0 customers, each tab should show its distinct empty state and zeroed stat cards",
+      "ScopeSwitcher (country->state->branch over 23 branches) + 5 Memberships filter chips untested on prod",
+      "Installment plan config display (Full/Half 2x/Quarterly 4x via installmentPlans.list) untested even though it survives with 0 instances",
+      "Assign Pack wizard per-installment breakdown (CLAUDE.md per-installment-amount rule) never verified against the 70 migrated services",
+      "Legacy redirect routes landing on correct canonical tab unverified on prod"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Packages overview renders all three tabs with empty states (migration proof)",
+        "journeySteps": [
+          "Packages overview open on Memberships tab showing 4 stat cards reading 0 / 0 / 0 / RM0.00",
+          "Memberships table showing the 'No memberships found' empty state",
+          "Session Packs tab selected showing 'No session packs found' and the Assign Pack button",
+          "Installments tab selected showing the empty installment list with status filter chips",
+          "Browser address bar after visiting the legacy /packages/instances/view URL redirected to /packages/view?tab=session-packs"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render proof against MOVE. Confirms the canonical route apps/web/src/routes/_authenticated/dashboard/_layout/packages/view.tsx mounts MembershipsPage/PackageInstancesPage/PackageInstallmentsPage. Empty states are guaranteed by prod reality (0 package_instances, 0 customers). Login franchisee@gmail.com has package_management:read. No writes, no seed."
+      },
+      {
+        "title": "Assign Pack wizard open shows real service catalog and per-installment breakdown",
+        "journeySteps": [
+          "Session Packs tab open with the Assign Pack button visible",
+          "Assign Pack dialog open showing empty create form",
+          "Package (service) dropdown expanded listing real migrated services (e.g. '1-ON-1 PERSONAL TRAINING')",
+          "Payment-plan dropdown expanded showing Full / Half (2x) / Quarterly (4x)",
+          "Dialog showing the per-installment price breakdown (each installment amount, not the full RM total) after selecting a plan and entering a price",
+          "Dialog dismissed via Cancel with no record created and table still empty"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Read-only because the wizard is opened and explicitly CANCELLED, never submitted — packageInstances.create is never called (also blocked anyway: MOVE has 0 customers, clientId required). Proves CLAUDE.md per-installment-amount rule (instances-page.tsx perInstallmentRm/showBreakdown logic) and that the 70 services + installmentPlans.list survived migration. WRITE PATH (create) is deliberately not exercised — do not click Assign/submit."
+      },
+      {
+        "title": "Installments tab filter panel shows migrated installment-plan config",
+        "journeySteps": [
+          "Installments tab open showing empty list and the status filter chips (Active / Overdue / Locked / Due soon)",
+          "Filter panel expanded showing search, due-before, due-after and payment-plan controls",
+          "Payment-plan dropdown expanded listing Full / Half (2x) / Quarterly (4x)",
+          "A status filter chip selected with the list still showing its empty state"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Drives installments.adminOverview (empty) + installmentPlans.list (config present). Proves installment plan configuration is queryable on prod despite 0 sold instances. Read-only; selecting filters only re-queries. No seed."
+      },
+      {
+        "title": "Memberships scope switcher and filter chips narrow an empty tenant safely",
+        "journeySteps": [
+          "Memberships tab open with ScopeSwitcher and the 5 filter chips visible",
+          "ScopeSwitcher open showing the country / state / branch hierarchy list",
+          "A specific branch selected and the switcher closed showing the branch label",
+          "'Expiring 7 days' filter chip selected showing the 'No memberships found' empty state",
+          "'Frozen' then 'Expired' filter chips selected, each still showing the empty state and zeroed stat cards"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Exercises ScopeSwitcher (scopeNodeId -> branchId on listMemberships) and the filter chips across the 23-branch hierarchy. Proves scope narrowing + multi-tenant isolation read-path. All combinations return empty on MOVE, so it is safe and deterministic. Read-only."
+      }
+    ]
+  },
+  {
+    "module": "expenses-taxrates",
+    "routes": [
+      "/dashboard/expenses/view",
+      "/dashboard/settings/tax-rates"
+    ],
+    "procedures": [
+      {
+        "name": "expenses.list",
+        "type": "query"
+      },
+      {
+        "name": "expenses.getById",
+        "type": "query"
+      },
+      {
+        "name": "expenses.create",
+        "type": "mutation"
+      },
+      {
+        "name": "expenses.approve",
+        "type": "mutation"
+      },
+      {
+        "name": "expenses.reject",
+        "type": "mutation"
+      },
+      {
+        "name": "expenses.markPaid",
+        "type": "mutation"
+      },
+      {
+        "name": "taxRates.list",
+        "type": "query"
+      },
+      {
+        "name": "taxRates.getById",
+        "type": "query"
+      },
+      {
+        "name": "taxRates.getDefault",
+        "type": "query"
+      },
+      {
+        "name": "taxRates.create",
+        "type": "mutation"
+      },
+      {
+        "name": "taxRates.update",
+        "type": "mutation"
+      },
+      {
+        "name": "taxRates.setDefault",
+        "type": "mutation"
+      },
+      {
+        "name": "taxRates.deactivate",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Expenses view (/dashboard/expenses/view): Finance > Expenses header with ScopeSwitcher + 'Submit Expense' button",
+      "Expenses KPI tiles row: Total Claims, Total Value (MYR), Pending, Pending Value",
+      "Expenses status-filter tabs: All / Pending / Approved / Rejected / Paid",
+      "Expenses table (Date, Category, Description, Amount, Submitted By, Status, Actions) with hover RowActions (Approve/Reject on pending, Mark Paid on approved)",
+      "Expenses empty state: Receipt icon + 'No expenses found'",
+      "Expenses 'Submit Expense' (Create) dialog: Category, Description, Amount (RM), Expense Date, Receipt URL",
+      "Expenses Reject dialog (rejection reason) and Mark Paid dialog (payment reference)",
+      "Expenses permission-gate screen: 'You don't have access to this page' (no expense_management:read) / 'No organization selected'",
+      "Tax Rates page (/dashboard/settings/tax-rates): header 'Tax Rates' + 'Add tax rate' button",
+      "Tax Rates filter row: search input + status dropdown (Active / All status)",
+      "Tax Rates table (Name/Code, Rate %, Category, Effective From, Effective To, Status, Default, Edit/Deactivate) + footer '{n} tax rates · {m} active'",
+      "Tax Rates empty state: 'No tax rates'",
+      "Tax Rates Add/Edit dialog: Name, Code, Rate %, Category (SST/GST/Service Tax/Withholding/Tax Exempt/Custom), Effective From/Until, Description, 'Set as default' checkbox (create only)",
+      "Tax Rates inline 'Set default' button and 'Deactivate' action"
+    ],
+    "existingCoverage": "No E2E (screenshot or video) currently exercises either page. The e2e-web suite only contains POS installment screenshots (e2e-web/pos/pos-installment-sale) and a 9-test settings/email VIDEO suite (e2e-web/settings + e2e-web/videos). Coverage that DOES exist is unit/integration only: apps/web/src/__tests__/routes/expenses.test.tsx, apps/web/src/__tests__/routes/tax-rates.test.tsx, apps/web/src/__tests__/pages/expenses-page-scope.test.tsx (asserts ScopeProvider scopeNodeId is injected as branchId on expenses.list), plus server tests apps/server/src/tests/unit/services/expenses.test.ts, .../integration/expenses.integration.test.ts, .../unit/services/tax-rates.test.ts, .../integration/tax-rates.integration.test.ts and sales-tax.integration.test.ts. E2E_TEST_PLAN.md lists EXP-01 (P1 admin: submit -> approve -> markPaid; reject path) and tax-rates as planned smoke/journey items, but neither is implemented as a screenshot spec.",
+    "gaps": [
+      "Expenses page render is unproven end-to-end in prod: header, the four KPI tiles (all zero given 0 expenses), status tabs, and the 'No expenses found' empty state have no screenshot spec.",
+      "Expenses status-tab filtering (All/Pending/Approved/Rejected/Paid driving statusFilter -> expenses.list re-query) is read-only and visually unverified.",
+      "Expenses 'Submit Expense' dialog (CreateExpenseDialog) open + field render is untested; the create/approve/reject/markPaid mutations are entirely uncovered by E2E and are writes gated by separation-of-duties (a submitter cannot approve or mark-paid their own claim).",
+      "Expenses ScopeSwitcher narrowing (scopeNodeId -> branchId on expenses.list) is only asserted in a vitest unit test, never as a real branch-scoped screenshot journey.",
+      "Tax Rates config display (configured rates list, Default badge, rate % derived from basis points, effective dates, footer count) has no E2E migration proof.",
+      "Tax Rates search box + Active/All status filter behavior is untested.",
+      "Tax Rates Add/Edit dialog open + Category select (SST/GST/Service Tax/Withholding/Tax Exempt/Custom) and the live basis-points helper text are untested; create/update/setDefault/deactivate are writes and fully uncovered.",
+      "Expenses permission-gate screen and 'No organization selected' guard are untested."
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Expenses view renders with zero-claim empty state and KPI tiles (read-only migration proof)",
+        "journeySteps": [
+          "Finance > Expenses selected in sidebar, page header 'Finance / Expenses' with Submit Expense button visible",
+          "KPI tiles row showing Total Claims 0, Total Value RM0.00, Pending 0, Pending Value —",
+          "Status tabs row (All / Pending / Approved / Rejected / Paid) with All active",
+          "Empty table body showing Receipt icon and 'No expenses found' message",
+          "Pending tab selected, table still empty with 'Try clearing the status filter.' hint"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render. Prod has 0 expenses so empty state is the expected happy path and proves the migrated expenses.list query + permission read-guard work for franchisee@gmail.com. No buttons that mutate are clicked. Route is guarded by expense_management:read; owner login has it."
+      },
+      {
+        "title": "Tax Rates configuration page displays configured rates and default (read-only config display)",
+        "journeySteps": [
+          "Settings > Tax Rates page header 'Tax Rates' with 'Add tax rate' button visible",
+          "Filter row showing search box and status dropdown defaulted to Active",
+          "Tax rates table listing each rate's Name/Code, Rate %, Category chip, Effective From/To, Status and Default column",
+          "Footer summary reading '{n} tax rates · {m} active'",
+          "Status dropdown switched to 'All status' revealing any inactive rates alongside active ones"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves taxRates.list config migration. Spec is robust to data volume: if MOVE has rates configured it captures the table + Default badge; if none, step 3/4 capture the 'No tax rates' empty state and '0 tax rates' footer instead. Do NOT click Set default / Edit / Deactivate / Add (all writes)."
+      },
+      {
+        "title": "Expenses Submit Expense dialog opens and shows claim form (read-only, cancelled before submit)",
+        "journeySteps": [
+          "Expenses page header with Submit Expense button",
+          "Create Expense dialog open showing Category, Description, Amount (RM), Expense Date and Receipt URL fields",
+          "Category dropdown expanded listing Travel / Equipment / Supplies / Training / Other",
+          "Draft filled (category, short description, amount) with the dialog still open and unsaved",
+          "Dialog dismissed via Cancel, returning to the empty expenses table"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Captures the create form without writing. CRITICAL prod-safety: never click Submit/the primary action (expenses.create writes data into the pristine MOVE tenant). Must exit via Cancel. If this spec were allowed to submit it would become creates-data (P3)."
+      },
+      {
+        "title": "Tax Rates Add Tax Rate dialog opens and shows config form (read-only, cancelled before save)",
+        "journeySteps": [
+          "Tax Rates page, click 'Add tax rate'",
+          "'Add Tax Rate' dialog open showing Name, Code, Rate (%) and Category fields",
+          "Category select expanded showing SST / GST / Service Tax / Withholding Tax / Tax Exempt / Custom",
+          "Rate field with a value entered showing the live 'Stored as N basis points' helper text",
+          "Dialog dismissed via Cancel with no rate created"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Captures the tax-rate config form and the percent->basis-points conversion UI without persisting. CRITICAL prod-safety: never click 'Add Tax Rate'/Save (taxRates.create writes), never toggle 'Set as default' then save. Exit via Cancel only. Write variants (create / setDefault / deactivate) would be P3 and must be gated."
+      }
+    ]
+  },
+  {
+    "module": "employees-staffaccess-rbac",
+    "routes": [
+      "/dashboard/user/view",
+      "/dashboard/access-control/user-assignment",
+      "/dashboard/access-control/user-assignment?tab=invitations"
+    ],
+    "procedures": [
+      {
+        "name": "members.list",
+        "type": "query"
+      },
+      {
+        "name": "members.getById",
+        "type": "query"
+      },
+      {
+        "name": "members.newToday",
+        "type": "query"
+      },
+      {
+        "name": "members.create",
+        "type": "mutation"
+      },
+      {
+        "name": "members.updateRole",
+        "type": "mutation"
+      },
+      {
+        "name": "members.updateScope",
+        "type": "mutation"
+      },
+      {
+        "name": "members.deactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "members.suspend",
+        "type": "mutation"
+      },
+      {
+        "name": "members.reactivate",
+        "type": "mutation"
+      },
+      {
+        "name": "members.softDelete",
+        "type": "mutation"
+      },
+      {
+        "name": "members.restore",
+        "type": "mutation"
+      },
+      {
+        "name": "members.remove",
+        "type": "mutation"
+      },
+      {
+        "name": "members.retryGhlSync",
+        "type": "mutation"
+      },
+      {
+        "name": "roles.list",
+        "type": "query"
+      },
+      {
+        "name": "permissions.list",
+        "type": "query"
+      },
+      {
+        "name": "rolePermissions.list",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.reassignMember",
+        "type": "mutation"
+      },
+      {
+        "name": "invitations.list",
+        "type": "query"
+      },
+      {
+        "name": "invitations.create",
+        "type": "mutation"
+      },
+      {
+        "name": "invitations.revoke",
+        "type": "mutation"
+      },
+      {
+        "name": "invitations.resend",
+        "type": "mutation"
+      },
+      {
+        "name": "invitations.sendEmail",
+        "type": "mutation"
+      },
+      {
+        "name": "tenantAdmin.impersonateMember",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "UserViewPage (/dashboard/user/view): 'Users / Members' roster with ScopeSwitcher, Search box, Invite button",
+      "Role-grouped collapsible sections: Admins / Trainers / Staff / Clients, each with a member count and chevron toggle",
+      "MemberCard row: avatar+initials, name, email, Active/Suspended status pill, 'Joined' date, admin actions (Login as [staff only], Deactivate/Reactivate, ··· -> Remove from org)",
+      "UserView no-results / empty state ('No employees match your search' / 'No members yet')",
+      "UserView dialogs: ImpersonateDialog ('Log in as X?'), DeactivateDialog, ReactivateDialog, RemoveDialog ('Remove X?')",
+      "CreateInvitationDialog (opened from UserView Invite button)",
+      "Staff Access page (/dashboard/access-control/user-assignment): header card 'Staff Access' with Members | Invitations tab band",
+      "Members tab: 'User Role Assignment' header, ScopeSwitcher, Invite User button",
+      "MembersStatsBar: Total Users / Active Users / No Roles / Available Roles",
+      "MembersFiltersBar: search, role filter (All/No Roles/custom roles), status filter (All/Active/Inactive), Show deleted toggle, select-all checkbox",
+      "MembersGrid of user cards with per-row actions (edit roles, edit details, move branch, deactivate, soft-delete/restore, retry GHL sync)",
+      "RoleAssignmentSheet (assign a system role to a member)",
+      "EditUserDialog (system role + custom roleId + hierarchy scope selectors)",
+      "MoveBranchDialog (branch picker for reassigning scope)",
+      "InviteUserDialog (email + role)",
+      "Invitations tab: 'Invitations' heading, status filter, status counts (Pending/Accepted/Expired), invitation rows with revoke/resend, empty state"
+    ],
+    "existingCoverage": "No e2e coverage for this module. e2e-web/strategy-analysis.json and the implemented suites only cover settings/email (9 video tests) and a single pos-installment read-path screenshot test (e2e-web/pos/pos-installment-sale/*). There is a Vitest unit test at apps/web/src/__tests__/components/pages/access-control/members-tab.test.tsx, but no screenshot/agent E2E touches /dashboard/user/view or /dashboard/access-control/user-assignment.",
+    "gaps": [
+      "UserViewPage render proving the migrated 124-member roster groups correctly into Admins/Trainers/Staff/Clients with per-group counts (114 coaches should land under Trainers)",
+      "Role-group collapse/expand interaction and the 'N members' count per group",
+      "Search filter narrowing the roster and the 'No employees match your search' empty state",
+      "ScopeSwitcher narrowing members by country/state/branch (multi-tenant scope enforcement is the key migration risk)",
+      "Staff Access Members tab stats bar accuracy (Total Users vs Active vs Available Roles) against migrated data",
+      "Members tab filter controls: role filter populated from roles.list, status filter, and 'Show deleted' toggle (includeDeleted -> members.list)",
+      "Read-only open of RoleAssignmentSheet / EditUserDialog / MoveBranchDialog to confirm role + hierarchy-node selectors populate from migrated roles + 33 hierarchy nodes (without saving)",
+      "Invitations tab render + status counts; with a pristine tenant this is the empty/zero-pending state",
+      "Permission gating: requirePermission redirect-to-/dashboard for an under-privileged member (blocked: only the admin franchisee login available)"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Employee roster renders 124 staff grouped by role",
+        "journeySteps": [
+          "Logged in as franchisee, dashboard shown",
+          "Navigate to /dashboard/user/view — 'Users / Members' header with Scope switcher, Search box and Invite button",
+          "Admins group expanded showing admin member cards with green Active status pills",
+          "Trainers group header showing the coach member count (expect the bulk of the 114 coaches)",
+          "A member card showing avatar initials, name, email, Active pill, 'Joined' date and admin action buttons",
+          "Staff and Clients group headers visible with their member counts"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render via members.list (hierarchyScopeId=null). Proves the 124-member migration and role grouping (ROLE_GROUPS: admin/trainer/staff/client). franchisee is org owner -> callerIsAdmin true so action buttons render. Do NOT click any Deactivate/Remove/Login-as button (those are mutations)."
+      },
+      {
+        "title": "Search and scope switcher narrow the employee roster",
+        "journeySteps": [
+          "Full roster visible at /dashboard/user/view with all role groups",
+          "Type a coach name into Search — groups remount and only matching member cards remain visible",
+          "Clear the search box, then open the ScopeSwitcher dropdown showing the country/state/branch list",
+          "Select a single branch — roster re-queries and narrows to that branch's members (group counts drop)",
+          "Type a nonsense term into Search — 'No employees match your search' empty state shown"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Exercises client-side search filter plus the server-side scope narrowing (members.list hierarchyScopeId from ScopeProvider). Strong multi-tenant/scope proof. All read-only; no writes."
+      },
+      {
+        "title": "Staff Access — User Role Assignment renders stats, filters, and read-only assignment dialogs",
+        "journeySteps": [
+          "Navigate to /dashboard/access-control/user-assignment — 'Staff Access' header with Members | Invitations tabs, Members tab active",
+          "MembersStatsBar showing Total Users / Active Users / No Roles / Available Roles counts",
+          "Open the Status filter dropdown (All Status / Active / Inactive) and toggle 'Show deleted'",
+          "Open the Role Assignment sheet for one member showing the role options (do not save)",
+          "Open the Edit User dialog showing role + branch (hierarchy scope) selectors populated, then cancel",
+          "Open the Move to Branch dialog showing the branch picker, then close"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Reads members.list + roles.list + hierarchy.listNodes. Dialogs/sheets are mutation-CAPABLE (updateRole, updateScope, hierarchy.reassignMember) — spec stays read-only ONLY if the agent opens then cancels and never clicks Save/Confirm. Must be tagged so the harness gates against accidental Save on the pristine MOVE tenant."
+      },
+      {
+        "title": "Invitations tab renders zero-pending empty state and status filter",
+        "journeySteps": [
+          "On /dashboard/access-control/user-assignment, click the Invitations tab",
+          "'Invitations' heading with the status filter and counters (Pending / Accepted / Expired)",
+          "Empty-state shown reflecting a pristine tenant with no pending invitations",
+          "Open the status filter dropdown showing Pending / Accepted / Declined / Expired options"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Reads invitations.list only. MOVE is pristine so this should render the zero/empty state — a clean migration baseline. Avoid the Invite User / resend / revoke actions (those call invitations.create/resend/revoke + sendEmail which send real email and write rows)."
+      }
+    ]
+  },
+  {
+    "module": "branches-hierarchy",
+    "routes": [
+      "/dashboard/branch/view (BranchPage - hierarchy tree + detail panel; KNOWN ROUTE)",
+      "/dashboard/branch/create (HierarchicalBranchForm 4-step create wizard - write path)",
+      "/dashboard/branch/$id (branch detail page with QR invite code; part of branch-invites feature)"
+    ],
+    "procedures": [
+      {
+        "name": "hierarchy.listNodesWithStats",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.getNode",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.getDescendants",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listMembers",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.listAllMembers",
+        "type": "query"
+      },
+      {
+        "name": "hierarchy.createNode",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.updateNode",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.deleteNode",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.moveNode",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.reassignMember",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.bulkReassignMembers",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Branch Overview (/branch/view): sticky header 'Branch / Overview' breadcrumb + Expand all/Collapse all toggle + Add Branch button",
+      "Left tree panel: country root nodes -> region -> area intermediate nodes -> branch leaf rows (leaves show revenue/members stat line, stale spinner while cache warms)",
+      "Right NodeDetailPanel: ancestor breadcrumb + node name + address, 3 KPI tiles (Members / Revenue per mo / Staff), Opening Hours table, action toolbar (Edit Branch / View Performance [disabled] / Delete)",
+      "Empty state: 'No branches found' + Create Branch CTA (will NOT show for MOVE - 23 branches exist)",
+      "Edit Branch dialog: Name + Address + PIC fields, cascading Country/Region/Area selects, MemberReassignment/MemberSelector",
+      "Delete confirmation dialog: cascade warning with live descendant count + GHL-options removal note",
+      "Create Branch page (/branch/create): HierarchicalBranchForm + 'How it works' 4-step (Country/Region/Area/Branch) info card",
+      "Branch detail (/branch/$id): QrCodeCard invite"
+    ],
+    "existingCoverage": "No e2e coverage exists for this module. e2e-web/ contains only: (1) a 9-test VIDEO suite under e2e-web/settings/ covering email/domains, and (2) one screenshot test e2e-web/pos/pos-installment-sale/ covering the POS installment read-path. The string 'branch' appears in run-results.pos-migration.json only inside POS screenshot captions ('MOVE Private Fitness - 23 branches'); the hierarchy/branch module itself is untested. The /branch/view route is gated by requirePermission('hierarchy_management:read') and the page reads hierarchy.listNodesWithStats + hierarchy.listNodes.",
+    "gaps": [
+      "Tree render of the real 23-branch / 33-node MOVE hierarchy via hierarchy.listNodesWithStats",
+      "Auto-select of first root + NodeDetailPanel render (breadcrumb, name, address)",
+      "KPI tiles from branch_stats_cache: Members (0 customers), Revenue/mo (0 sales), Staff (124 staff)",
+      "Expand all / Collapse all toggle across full tree",
+      "Branch leaf stat line + stale-cache spinner state",
+      "Opening Hours table render",
+      "Edit Branch dialog open with cascading Country/Region/Area selects prefilled (read-only if not saved)",
+      "Delete confirmation dialog cascade-count warning (read-only if cancelled)",
+      "RBAC: Delete disabled for org root and without hierarchy_management:delete; View Performance permanently disabled",
+      "Create Branch wizard render at /branch/create"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Branch hierarchy tree renders MOVE's 23 branches / 33 nodes",
+        "journeySteps": [
+          "Login screen with franchisee@gmail.com entered",
+          "Dashboard loaded for MOVE Private Fitness",
+          "Branch Overview page: left tree shows country root node(s), header reads 'Branch / Overview'",
+          "Expand all clicked - full hierarchy expands (country -> region -> area -> branch leaves)",
+          "Branch leaf rows display name + revenue/members stat line",
+          "First root auto-selected, right detail panel populated"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render via hierarchy.listNodesWithStats + listNodes; no writes. Proves the migrated tenant DB returns the 23 branches / 33 hierarchy nodes and the tree builds. Expand all is client-state only. This is the headline migration-proof spec for the module."
+      },
+      {
+        "title": "Branch node selection shows detail panel with KPI tiles and opening hours",
+        "journeySteps": [
+          "Branch Overview with tree expanded",
+          "A branch leaf node clicked (row gets black selected border)",
+          "NodeDetailPanel header shows branch name + ancestor breadcrumb path",
+          "Three KPI tiles render: Members, Revenue / mo, Staff",
+          "Opening Hours table rendered in the detail panel",
+          "An intermediate region/area node selected showing its own breadcrumb + KPIs"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Read-only; selection is local state, stats come from branch_stats_cache. Expect Staff KPI populated (124 staff org-wide), Members/Revenue likely 0 or em-dash (0 customers / 0 sales) - good evidence the cache-read path works post-migration. Capture a stale-cache spinner if one appears."
+      },
+      {
+        "title": "Edit Branch dialog opens with cascading country/region/area selects prefilled",
+        "journeySteps": [
+          "A branch leaf node selected in the detail panel",
+          "Edit Branch button visible in the detail toolbar",
+          "Edit Branch dialog open showing Name and Address fields prefilled",
+          "Cascading Country / Region / Area selects prefilled to the node's ancestors",
+          "Cancel pressed - dialog closes, no update sent"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "READ-ONLY ONLY IF the dialog is closed via Cancel/dismiss - the Save action calls hierarchy.updateNode (+ hierarchy.moveNode if area changed), which would mutate the live MOVE tenant. Spec must assert the prefilled cascading selects then Cancel; never click the submit button. Gate as write if save is ever exercised."
+      },
+      {
+        "title": "Create Branch wizard renders at /branch/create",
+        "journeySteps": [
+          "Add Branch button in the Branch Overview header",
+          "Create Branch page loads at /dashboard/branch/create",
+          "HierarchicalBranchForm wizard rendered (Country/Region/Area/Branch steps)",
+          "'How it works' info card shows the 4 numbered steps",
+          "Permissions-required note ('Organization Owner') visible in the info card"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Render-only proof that the create route + HierarchicalBranchForm load and the requirePermission('hierarchy_management:create') guard passes for the owner. Do NOT submit the form - createNode would add a real node to MOVE's pristine 33-node hierarchy. Stop at the rendered empty wizard."
+      }
+    ]
+  },
+  {
+    "module": "onboarding-qr",
+    "routes": [
+      "/dashboard/onboarding/view",
+      "/onboarding/$token (public QR landing — the scan target, separate route)"
+    ],
+    "procedures": [
+      {
+        "name": "branchInvites.listAll",
+        "type": "query"
+      },
+      {
+        "name": "branchInvites.list",
+        "type": "query"
+      },
+      {
+        "name": "branchInvites.create",
+        "type": "mutation"
+      },
+      {
+        "name": "branchInvites.revoke",
+        "type": "mutation"
+      },
+      {
+        "name": "branchInvites.regenerate",
+        "type": "mutation"
+      },
+      {
+        "name": "onboarding.getInviteContext",
+        "type": "query"
+      },
+      {
+        "name": "onboarding.redeemInvite",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Loading skeleton (split-pane placeholder)",
+      "Permission-denied state ('You don\\'t have access to this page' — admin franchisee won\\'t hit this)",
+      "Error state ('Failed to load branches')",
+      "Empty state ('No branches found' — will NOT occur on MOVE, 23 branches exist)",
+      "Happy path master-detail: 'Onboarding' header + left 'Active QR Codes' sidebar (search box, branch list, count badge, footer summary)",
+      "Right pane no-selection placeholder ('Select a branch to view or manage its QR code')",
+      "Right pane NoQrPane (branch without QR: dashed 'QR code will appear here' placeholder, Branch callout, Max Uses input, 'Generate QR Code' button)",
+      "Right pane HasQrPane (QR SVG render, green Active badge, stats grid Sign-ups/Limit/Issued/Expires, usage bar, Invite URL, Copy/Download/WhatsApp/Email share actions, Regenerate + Revoke buttons)",
+      "Revoke confirm dialog ('Revoke QR code?')",
+      "Regenerate confirm dialog ('Regenerate QR code?')",
+      "Public onboarding landing page at /onboarding/$token (getInviteContext render — the QR scan destination)"
+    ],
+    "existingCoverage": "The PROD screenshot/video suite under e2e-web/ has ZERO onboarding-qr coverage (it only covers settings/email = 9 video tests, and pos installment read-path = 1 screenshot test). Prior NON-prod coverage exists but does not satisfy the migration-proof goal: (1) e2e/branch-onboarding.spec.ts — a Playwright dev-stack test that generates a QR via the branch DETAIL page, opens the anon landing page, and revokes; it asserts the form renders but deliberately does NOT submit signup (to avoid dangling Better-Auth users), and runs against a seeded TEST_ORG (996febce-...), not PROD MOVE. (2) e2e/branch-onboarding-full-submit.anon.journey.spec.ts — full anon submit path, dev-stack only. (3) _e2e/web/onboarding/smoke.spec.ts — an auto-generated read-only page-LOAD smoke that only asserts /dashboard/onboarding/view renders without crashing. (4) _e2e/loop/findings/dashboard_onboarding_view.json — a loop crawl that timed out with zero findings. (5) apps/server/src/tests/integration/branch-invite.integration.test.ts — server integration coverage of the procedures. None of these capture screenshots of the actual /dashboard/onboarding/view master-detail UI against the migrated MOVE tenant.",
+    "gaps": [
+      "No screenshot proof that /dashboard/onboarding/view renders against the migrated MOVE tenant — the listAll query returning one row per accessible branch (23 branches / 33 nodes) into the master-detail shell with the 'Active QR Codes' count badge",
+      "No capture of the right-pane NoQrPane config display (Max Uses input + 'Generate QR Code' button) which is what every MOVE branch shows since prod has 0 issued invites",
+      "No capture of branch selection switching in the master-detail (clicking a list row moves the highlight and swaps the right pane)",
+      "No capture of the 'Search branches…' filter narrowing the list, the count badge updating, or the no-match state ('No branches match your search.' + 'Select a branch…' placeholder)",
+      "No capture of the footer summary text ('N branches still need a QR code' / 'X of Y branches have a QR code')",
+      "No capture of HasQrPane (rendered QR SVG, stats grid, usage bar, invite URL, share actions) — requires a seeded/created invite since MOVE likely has none",
+      "No capture of the Revoke / Regenerate confirmation dialogs",
+      "Public /onboarding/$token landing page (getInviteContext render) is not covered in the PROD suite and requires a live token to author"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Onboarding QR index renders the MOVE branch list (migration proof)",
+        "journeySteps": [
+          "Logged in as franchisee, navigate to /dashboard/onboarding/view",
+          "'Onboarding' header and left 'Active QR Codes' sidebar visible with the branch count badge",
+          "Branch list populated with MOVE branches (~23 rows), each showing a 'No QR' pill, first branch auto-selected and highlighted",
+          "Right pane shows the NoQrPane for the selected branch: dashed 'QR code will appear here after generation' placeholder, Branch callout, Max Uses input, 'Generate QR Code' button",
+          "Footer summary reads 'N branches still need a QR code'"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render of branchInvites.listAll + the master-detail shell. Do NOT click 'Generate QR Code'. This is the core migration proof: confirms the 23-branch hierarchy resolves and renders post-migration. Customers=0 is irrelevant here — this page lists BRANCHES, not members, so it renders non-empty. Since MOVE has 0 issued invitations, expect every branch in the NoQrPane state."
+      },
+      {
+        "title": "Branch selection and search filtering in the onboarding master-detail",
+        "journeySteps": [
+          "Onboarding view loaded with the branch list and count badge",
+          "Click a different branch row — the left highlight moves and the right pane header updates to that branch name (NoQrPane)",
+          "Type a matching query in 'Search branches…' — the list narrows and the count badge updates",
+          "Type a non-matching query — left shows 'No branches match your search.' and right pane shows 'Select a branch to view or manage its QR code.'",
+          "Clear the search — the full branch list is restored"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Selection and search are client-side React state only — no API mutation fires. Exercises BranchListItem selection and the OnboardingIndexPage search filter / empty-filter placeholder. Safe on MOVE prod."
+      },
+      {
+        "title": "Generate a branch onboarding QR code (WRITE — must be gated)",
+        "journeySteps": [
+          "Onboarding view, select a branch showing 'No QR'",
+          "Enter a Max Uses value in the NoQrPane form (or leave blank for unlimited)",
+          "Click 'Generate QR Code' — success toast 'QR code generated.'",
+          "Right pane switches to HasQrPane showing the rendered QR SVG and the Invite URL (/onboarding/<token>?org=...)",
+          "Stats grid shows Sign-ups 0, Limit, Issued 'just now', Expires date, and a green Active badge",
+          "The branch's list row now shows the usage badge instead of the 'No QR' pill"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "creates-data",
+        "authorability": "easy",
+        "notes": "GATED: branchInvites.create writes a new invitation row into the MOVE tenant DB. Authorable without seed (branches exist) but it mutates the client tenant — tag to skip on MOVE prod, or run on a disposable tenant, or immediately clean up via the revoke spec. This is the only way to reach the HasQrPane / QR-render / share-actions screen.",
+        "priority": "P3"
+      },
+      {
+        "title": "Regenerate and revoke an existing QR code (WRITE — must be gated)",
+        "journeySteps": [
+          "Onboarding view, select a branch that HAS an active QR (HasQrPane visible)",
+          "Click 'Regenerate' — the 'Regenerate QR code?' confirm dialog opens",
+          "Confirm — toast 'New QR code generated.' and a new QR SVG + Invite URL replace the old one",
+          "Click 'Revoke' — the 'Revoke QR code?' confirm dialog opens",
+          "Confirm — toast 'Invite revoked.' and the branch returns to the NoQrPane 'No QR' state"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "mutates-existing",
+        "authorability": "needs-seed-data",
+        "priority": "P3",
+        "notes": "GATED: branchInvites.regenerate revokes+reissues and branchInvites.revoke deactivates the invitation row in the MOVE tenant DB. Requires a pre-existing active invite (chain after the Generate spec or seed one). Captures both confirmation dialogs. Tag to skip on MOVE prod; pairs naturally as the cleanup for the Generate spec."
+      }
+    ]
+  },
+  {
+    "module": "announcements-approvals",
+    "routes": [
+      "/dashboard/announcements/view (apps/web/src/routes/_authenticated/dashboard/_layout/announcements/view.tsx — beforeLoad requirePermission('announcement_management:read'))",
+      "/dashboard/operations/approvals (apps/web/src/routes/_authenticated/dashboard/_layout/operations/approvals.tsx — beforeLoad requireRole(['admin','trainer']); validateSearch scope=all|assignable_to_me)"
+    ],
+    "procedures": [
+      {
+        "name": "announcements.list",
+        "type": "query"
+      },
+      {
+        "name": "announcements.listActive",
+        "type": "query"
+      },
+      {
+        "name": "announcements.create",
+        "type": "mutation"
+      },
+      {
+        "name": "announcements.update",
+        "type": "mutation"
+      },
+      {
+        "name": "announcements.delete",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.listPending",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.assignTrainer",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.bulkAssign",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.reject",
+        "type": "mutation"
+      },
+      {
+        "name": "packageInstances.confirmPayment",
+        "type": "mutation"
+      },
+      {
+        "name": "hierarchy.listNodes",
+        "type": "query"
+      }
+    ],
+    "screens": [
+      "Announcements view page — 'Communications / Announcements' top bar with ScopeSwitcher + 'New' button, two-column layout (filter rail + inbox list)",
+      "Announcements left filter rail — audience filters (All / All Staff / All Members / Branch-scoped with counts) + status filters (active / inactive / all)",
+      "Announcements search + sort bar (Newest/Oldest toggle)",
+      "Announcement inbox list with expandable AnnouncementListItem rows (pin/edit/deactivate/delete actions, StatusPill, AudienceChip)",
+      "Announcements empty state — 'No announcements' (Megaphone icon, filter/search-aware subtext)",
+      "AnnouncementFormDialog — create/edit sheet (title, message, priority, target audience, start/end schedule, isPinned, requiresAcknowledgement, branch scope picker from hierarchy nodes)",
+      "AnnouncementDeleteDialog (confirm delete)",
+      "AnnouncementDeactivateDialog (confirm deactivate)",
+      "Approvals page — 'Operations / Approvals' top bar with ScopeSwitcher + Refresh, Gmail-style inbox layout",
+      "Approvals HeroStats — live KPI hero (org name, queue label per tab, total count, queued value, high-priority count, oldest/SLA)",
+      "Approvals FilterBar — status pills (Awaiting payment / Pending / Approved / Rejected), priority pills (All/High/Med/Low with counts), scope toggle (All branches / Assignable to me), customer/package search, Export queue (CSV)",
+      "Approvals InboxList / InboxRow (date-grouped rows) with click-to-expand ExpandedRowDetail (assign trainer, reject, schedule, confirm payment, TrainerAvatar, PriorityDot, preferred times)",
+      "Approvals per-tab empty states (e.g. 'No packages waiting for trainer assignment', 'No packages awaiting payment confirmation', 'No approved packages yet', 'No rejected packages', 'No results match your search')",
+      "RejectPackageDialog (admin-only reject with reason)",
+      "ScheduleSessionsPanel (full-mode session scheduling drawer)",
+      "ConfirmPaymentDialog (confirm offline/installment payment)",
+      "Forbidden callout — 'You don't have permission to view approvals.' for non-admin/non-trainer roles"
+    ],
+    "existingCoverage": "No e2e coverage exists for this module. e2e-web/ contains only the settings/email video suite (9 journeys under e2e-web/settings/, all tagged settings/email in strategy-analysis.json) and a single POS installment-sale screenshot read-path (e2e-web/pos/pos-installment-sale/, run-results.pos-migration.json). Neither announcements nor approvals appears in any journey file, run-results, or strategy-analysis (grep for 'announcement'/'approval' across e2e-web returns nothing). Server-side unit/integration tests exist (apps/server/src/tests/.../announcements.*.test.ts, packages/api/.../pending.scope.test.ts) but those are not browser e2e.",
+    "gaps": [
+      "Announcements view page render untested (header, filter rail, inbox list vs empty state)",
+      "Announcements status/audience filter switching and 'No announcements' empty state untested",
+      "AnnouncementFormDialog open (read-only wizard-open) untested — fields + hierarchy-fed branch scope picker",
+      "Approvals queue render untested — listPending returns EMPTY in all 4 tabs given 0 packages sold in prod",
+      "Approvals tab switching (Awaiting payment/Pending/Approved/Rejected) each showing distinct empty-state copy untested",
+      "Approvals priority pills, scope toggle, ScopeSwitcher narrowing, and Export-queue-disabled-when-empty untested",
+      "Approvals HeroStats KPI hero (org name, queue value, SLA) render untested",
+      "RBAC permission-denied callout path for non-admin/non-trainer untested"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Announcements view renders (Communications / Announcements, read-only)",
+        "journeySteps": [
+          "Logged in as franchisee@gmail.com, navigating to /dashboard/announcements/view",
+          "Announcements page header showing 'Communications / Announcements' with ScopeSwitcher and 'New' button",
+          "Left filter rail showing audience filters (All, All Staff, All Members, Branch-scoped) with counts and status filters (active/inactive/all)",
+          "Right column showing search + 'Sort: Newest' bar above the inbox list",
+          "Inbox list rendered with announcement rows, or the 'No announcements' empty state (Megaphone) if none exist",
+          "Switching status filter to 'inactive' re-queries and the list/empty-state updates accordingly"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render/empty-state proof for announcements.list. Login is org owner/admin so announcement_management:read passes. Prod announcement count is unknown — capture whatever renders; the page mounting + filters proves the migration. Do NOT click pin/edit/delete (those are mutations)."
+      },
+      {
+        "title": "Approvals queue renders empty across all four status tabs (read-only)",
+        "journeySteps": [
+          "Navigating to /dashboard/operations/approvals as admin, 'Operations / Approvals' header with ScopeSwitcher visible",
+          "HeroStats hero showing 'MOVE Private Fitness · Approvals Queue · Live' with Pending count and queued value",
+          "Pending tab active, empty-state card 'No packages waiting for trainer assignment'",
+          "Selecting 'Awaiting payment' tab — empty-state 'No packages awaiting payment confirmation'",
+          "Selecting 'Approved' tab — empty-state 'No approved packages yet'",
+          "Selecting 'Rejected' tab — empty-state 'No rejected packages'"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Each tab fires packageInstances.listPending with a different approvalStatus. Prod has 0 packages sold / 0 sales_orders, so every tab is genuinely empty — this is the strongest read-only migration proof for approvals. No data created. Only tab clicks (search-state only) and refetches."
+      },
+      {
+        "title": "New Announcement form dialog opens and closes without saving (read-only wizard-open)",
+        "journeySteps": [
+          "Announcements view loaded with 'New' button in the header",
+          "Clicking 'New' opens the AnnouncementFormDialog showing Title and Message inputs",
+          "Dialog showing priority and target-audience selectors plus start/end schedule fields",
+          "Dialog showing Pin and 'Requires acknowledgement' toggles and the branch-scope picker (hierarchy nodes)",
+          "Closing the dialog via Cancel — list returns unchanged, no announcement created"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Read-only ONLY because we open and Cancel. The submit button calls announcements.create (creates-data) and MUST NOT be clicked on the MOVE prod tenant. Verifies the create wizard and the hierarchy.listNodes-fed branch scope picker render. If any seed/write variant is later wanted, tag it creates-data and gate it."
+      },
+      {
+        "title": "Approvals filter bar and scope switcher interactions (read-only)",
+        "journeySteps": [
+          "Approvals page on Pending tab with FilterBar visible (search, priority pills, scope toggle, Export queue)",
+          "Priority pills (All/High/Med/Low) and 'All branches' / 'Assignable to me' scope toggle shown with counts",
+          "Switching scope toggle to 'Assignable to me' — queue re-queries (remains empty in prod)",
+          "ScopeSwitcher open showing the MOVE Private Fitness branch hierarchy (country/state/branch)",
+          "Selecting a branch narrows the queue scope and the footer 'Showing 0 of 0' updates; 'Export queue' button stays disabled when empty"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Exercises FilterBar scope/priority controls + ScopeSwitcher multi-tenant narrowing (proves scope switcher wiring) — all client-state/query-input changes, no writes. Export queue triggers a client-side CSV download only when rows exist; it is disabled at 0 rows so nothing downloads in prod."
+      }
+    ]
+  },
+  {
+    "module": "org-settings-notifications",
+    "routes": [
+      "/dashboard/settings/organization",
+      "/dashboard/settings/notifications"
+    ],
+    "procedures": [
+      {
+        "name": "organizationSettings.get",
+        "type": "query"
+      },
+      {
+        "name": "organizationSettings.upsert",
+        "type": "mutation"
+      },
+      {
+        "name": "notificationPreferences.get",
+        "type": "query"
+      },
+      {
+        "name": "notificationPreferences.update",
+        "type": "mutation"
+      },
+      {
+        "name": "notifications.list",
+        "type": "query"
+      },
+      {
+        "name": "notifications.getUnreadCount",
+        "type": "query"
+      },
+      {
+        "name": "notifications.markRead",
+        "type": "mutation"
+      },
+      {
+        "name": "notifications.markAllRead",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Organization Settings page (Settings / Organization) - General Settings card: Grace Period (Days) number input, Default Commission (%) input, Locale select; Approval Policy card: 'Require Package Approval' switch; sticky footer with 'Save Settings' button",
+      "Organization Settings - non-admin read-only variant: amber 'Admin only' badge in header, all fields disabled, 'You need admin permissions to change these settings' note in footer",
+      "Organization Settings - loading skeleton (3 field skeletons in General, 1 in Approval Policy)",
+      "Organization Settings - 'No organization selected' guard (Lock icon empty state)",
+      "Notification Preferences page (Settings / Notifications) - Notification Channels card: Email/SMS/Push switches; Notification Content card: Booking Reminders / Booking Confirmations / Promotional Emails / Package Expiry switches",
+      "Notification Preferences - header save indicator transitioning Saving... (amber) -> Saved (emerald) on toggle",
+      "Notification Preferences - loading skeleton (2 skeleton sections, 3 + 4 rows)",
+      "Notification Preferences - 'No organization selected' guard (Lock icon empty state)"
+    ],
+    "existingCoverage": "No screenshot/video E2E in e2e-web/ covers either route. The e2e-web suite only covers settings/email (9 video journeys under e2e-web/settings/email-*.journey.json) and a pos installment screenshot read-path (e2e-web/pos/pos-installment-sale/). There IS an older API-level Playwright rule test at _e2e/web/settings/organization-settings.rule.spec.ts that exercises organizationSettings/get + organizationSettings/upsert via a READ->MODIFY->RESTORE pattern on the singleton key 'grace_period_days' (changes to '13' then restores original in a finally block) - but it is an rpc-level rule spec, not a screenshot UI journey, and it WRITES to the org settings. There is NO coverage at all of notificationPreferences (get/update) or of the notifications feed router. So the UI render of both pages, and the notification-preferences toggle UX, are untested by screenshots.",
+    "gaps": [
+      "Organization Settings page render is unproven: no screenshot shows General Settings config (Grace Period, Default Commission %, Locale = English (Malaysia)) and Approval Policy toggle loading MOVE's persisted organizationSettings.get values - core proof the migration kept org config",
+      "Notification Preferences page render is unproven: no screenshot shows the 3 channel switches (Email/SMS/Push) + 4 content switches reflecting notificationPreferences.get (defaults all-on on first visit since prod likely has no prefs row for this user)",
+      "Notification toggle auto-save UX (Saving... -> Saved header indicator via notificationPreferences.update) is untested - and it is the only write surface that fires on a single toggle click with no explicit Save button",
+      "Locale select dropdown options (English (Malaysia) / English (United States)) and Approval Policy switch state are never visually captured",
+      "Non-admin read-only variant of Organization settings ('Admin only' badge + disabled fields + footer note) is a blocked gap: the franchisee owner login is admin, so the disabled/locked path cannot be reached",
+      "organizationSettings.upsert save path (Save Settings writing grace_period_days, commission_percentage, locale, package_approval.required) is only covered by the rpc rule spec, never via the UI, and writing it on MOVE mutates the live singleton org config"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Organization settings page renders MOVE's org-wide config (read-only)",
+        "journeySteps": [
+          "Dashboard loaded after login as franchisee@gmail.com",
+          "Settings / Organization page open showing breadcrumb header",
+          "General Settings card showing Grace Period (Days) input pre-filled from saved value",
+          "Default Commission (%) input and Locale select showing English (Malaysia)",
+          "Approval Policy card showing 'Require Package Approval' toggle in its saved state",
+          "Sticky footer showing enabled 'Save Settings' button (owner is admin), left untouched"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves organizationSettings.get hydrates the form for all four keys (grace_period_days, commission_percentage, locale, package_approval.required). Route is guarded by requirePermission('hierarchy_management:update'); franchisee is owner/admin so fields render editable. CRITICAL: do NOT click 'Save Settings' or edit any field - organizationSettings.upsert mutates MOVE's singleton org config. Screenshot only."
+      },
+      {
+        "title": "Notification preferences page renders channel + content toggles (read-only)",
+        "journeySteps": [
+          "Navigate to Settings / Notifications",
+          "Notification Channels card showing Email, SMS and Push toggles",
+          "Notification Content card showing Booking Reminders, Booking Confirmations, Promotional Emails, Package Expiry toggles",
+          "All seven toggles reflecting saved preference state (defaults all-on on first visit)"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves notificationPreferences.get loads; merges null->DEFAULT_PREFS (all true) when no row exists for the user. Route has no permission guard (any authenticated member). CRITICAL: each toggle auto-saves immediately via notificationPreferences.update onCheckedChange (no Save button) - do NOT click any switch; capture render only."
+      },
+      {
+        "title": "Organization settings Locale dropdown open showing locale options (read-only)",
+        "journeySteps": [
+          "Settings / Organization page loaded with form populated",
+          "Locale select trigger showing current value English (Malaysia)",
+          "Locale dropdown open listing English (Malaysia) and English (United States)",
+          "Dropdown dismissed without selecting; Save Settings button still untouched"
+        ],
+        "captureCount": 3,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Opening the shadcn Select is pure UI and does not call any procedure. CRITICAL: dismiss via Escape/outside-click WITHOUT choosing a different option and WITHOUT pressing Save - selecting then saving would organizationSettings.upsert the locale key on MOVE."
+      },
+      {
+        "title": "Notification preference toggle shows Saving -> Saved then restores (write, gated)",
+        "journeySteps": [
+          "Notifications page with 'Promotional Emails' toggle ON",
+          "Promotional Emails toggled OFF; header shows amber 'Saving...' indicator",
+          "Header shows green 'Saved' confirmation, toggle now OFF",
+          "Promotional Emails toggled back ON to restore the original state",
+          "Header shows 'Saved' again with the toggle returned to ON"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "mutates-existing",
+        "authorability": "easy",
+        "priority": "P3",
+        "notes": "Only way to prove notificationPreferences.update + the Saving/Saved UX. WRITE: updates the prefs row for the franchisee user id (per-user scope, not org/member business data, so blast radius is low and MOVE sales/customer data is untouched). Must toggle back ON to restore. GATE this behind a write flag; skip on a strictly pristine read-only run."
+      }
+    ]
+  },
+  {
+    "module": "integrations-audit",
+    "routes": [
+      "/dashboard/settings/google-calendar",
+      "/go-highlevel-integration",
+      "/dashboard/audit/view"
+    ],
+    "procedures": [
+      {
+        "name": "googleCalendar.status",
+        "type": "query"
+      },
+      {
+        "name": "googleCalendar.orgStatus",
+        "type": "query"
+      },
+      {
+        "name": "googleCalendar.listConnectedCalendars",
+        "type": "query"
+      },
+      {
+        "name": "googleCalendar.disconnect",
+        "type": "mutation"
+      },
+      {
+        "name": "googleCalendar.updateSettings",
+        "type": "mutation"
+      },
+      {
+        "name": "googleCalendar.syncNow",
+        "type": "mutation"
+      },
+      {
+        "name": "auditLogs.list",
+        "type": "query"
+      },
+      {
+        "name": "auditLogs.exportCsv",
+        "type": "query"
+      },
+      {
+        "name": "auditLogs.listForCustomer",
+        "type": "query"
+      },
+      {
+        "name": "ghlSync.listEvents",
+        "type": "query"
+      },
+      {
+        "name": "ghl.getOrgShared",
+        "type": "query"
+      },
+      {
+        "name": "ghl.listBranchLinks",
+        "type": "query"
+      },
+      {
+        "name": "ghl.listPendingContacts",
+        "type": "query"
+      },
+      {
+        "name": "ghl.connectOrgShared",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.disconnectOrgShared",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.connectBranch",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.disconnectBranch",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.retryFailedSyncs",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.setApprovalGate",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.approvePendingContact",
+        "type": "mutation"
+      },
+      {
+        "name": "ghl.rejectPendingContact",
+        "type": "mutation"
+      }
+    ],
+    "screens": [
+      "Google Calendar settings (/dashboard/settings/google-calendar): header with 'Connect My Calendar' button + Settings/Google Calendar breadcrumb",
+      "Google Calendar org status strip: 4 stat pills (Trainers connected 'X of Y', Events synced today, Conflicts detected, Last org sync) with info tooltips on null metrics",
+      "Google Calendar 'My Connection' card: 3 states — amber 'My calendar not connected' + Connect, emerald 'Your calendar is connected' + email/scope badge/Disconnect, rose 'Last sync failed' + Reconnect",
+      "Google Calendar disconnect confirm (native window.confirm) + OAuth-return toasts driven by ?gcal=connected|error search params",
+      "Google Calendar Sync Settings sidebar: Sync direction radios, Conflict resolution radios, Calendars synced Select (or 'No calendars found' empty), Save settings + Sync now (60s countdown) buttons",
+      "GoHighLevel Integration (/go-highlevel-integration): page heading + subtitle",
+      "GHL Organization-Wide Connection card: connected badge + location/country-field count + Disconnect, OR connect form (Location ID + Private Integration Token)",
+      "GHL Inbound Approval Queue card: gate toggle ('Gate ON — new contacts held' / 'Gate OFF — instant sync') + pending-contacts table or 'No contacts awaiting approval' empty state with Approve/Reject actions",
+      "GHL legacy Branch Connections table: per-branch rows (Branch, GHL Location ID, Status badge, Sync Errors, Connect/Disconnect/Retry)",
+      "GHL Sync Events card: collapsible <details> rows with status badge + event type + email + raw JSON payload, or 'No sync events yet.' empty state",
+      "GHL 'Connect GHL: <branch>' dialog: Location ID, API key, optional Existing Branch custom field ID, Cancel/Connect",
+      "Audit Log (/dashboard/audit/view): header with Export CSV button + Operations/Audit Log breadcrumb",
+      "Audit Log KPI tiles row: Total events / Danger / Warning / Info",
+      "Audit Log filter card: Severity, Actor, Action type, Entity type, Date from/to, Branch, search box, Clear filters, result-count status line",
+      "Audit Log results table (Severity, Timestamp, Actor, Action, Entity type, Entity ID, Branch, IP, Diff button) with Load-more footer, OR 'No audit events' empty state",
+      "Audit Log Changes/diff dialog (ChangesDialog) opened from a row's Diff button",
+      "Audit Log guard states: 'No organization selected', 'You don't have access' (missing audit_log:read), and error/permission-denied callouts"
+    ],
+    "existingCoverage": "The screenshot/video agent suite under e2e-web/ does NOT cover this module — it only covers settings/email (9 video journeys in e2e-web/settings/*.json) and a POS installment read-path screenshot. There is no agent-driven screenshot or video coverage for google-calendar, GoHighLevel, or the audit log. Separately, the older Playwright batch suite under e2e/ has functional smoke checks (no screenshots): e2e/batch5.dashboard.spec.ts 'Settings — Google Calendar' TC-01..05 (loads without JS crash, connect/disconnect/sync button present, ?gcal=connected returns without crash); e2e/batch2.dashboard.spec.ts 'Audit Log View' TC-01..04 (audit heading visible, no error boundary, a filter control present, table-rows-or-empty-state present); e2e/journeys/80-settings.admin.journey.spec.ts navigates to google-calendar and asserts URL. No coverage at all for /go-highlevel-integration. E2E_TEST_PLAN.md lists google-calendar + audit-logs as P1/P2 'smoke' only and GHL (INTG-01) as platform-admin integration tests. Net: read-only render proof for these three tenant screens is a gap for the screenshot suite.",
+    "gaps": [
+      "Audit Log full render is unproven by screenshot: KPI tiles (Total/Danger/Warning/Info), filter card, and the event table with severity/actor/action badges. MODULE HINT says audit may have rows — strongest single 'migration works' screenshot proof in this module.",
+      "Audit Log Changes/diff dialog (ChangesDialog) opening from a row's Diff button is untested — verifies enriched row detail renders.",
+      "Audit Log severity/entity/date filters narrowing the result-count status line is untested (read-only interaction).",
+      "Google Calendar org status strip rendering real org numbers (trainers connected 'X of Y' over MOVE's 114 coaches, last-org-sync) is unproven; existing batch test only checks 'no crash'.",
+      "Google Calendar 'My calendar not connected' amber banner + Sync Settings sidebar (sync-direction / conflict-policy radios) + 'No calendars found' empty state are unproven by screenshot.",
+      "GoHighLevel Integration page (/go-highlevel-integration) has ZERO coverage of any kind: org-wide connection card, approval-queue gate toggle + empty state, the 23-branch legacy Branch Connections table, and Sync Events empty state all unproven.",
+      "GHL per-branch 'Connect GHL' dialog form render (Location ID / API key / custom field) is untested — a clean read-only wizard-open capture.",
+      "GHL branch table depends on hierarchy.listNodes (23 branches) + ghl.listBranchLinks; multi-tenant isolation of these lists is not screenshot-verified for the tenant view."
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Audit log renders with KPI tiles, event rows, and diff detail (read-only migration proof)",
+        "journeySteps": [
+          "Audit Log page loaded at /dashboard/audit/view showing the Operations / Audit Log breadcrumb and Export CSV button",
+          "Four KPI tiles displaying Total events / Danger / Warning / Info counts",
+          "Filter card showing Severity, Actor, Action type, Entity type, Date from/to and Branch controls with the result-count status line",
+          "Event table populated with severity badges, timestamps, actor avatars and action badges (or the 'No audit events' empty state if the migrated log is empty)",
+          "Severity filter set to 'danger', narrowing the 'N results' status line",
+          "Changes diff dialog open showing the before/after detail for a selected row"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Pure render path: orpc.auditLogs.list (4 KPI count calls + infinite list) under audit_log:read, which the franchisee owner has. Do NOT click Export CSV — auditLogs.exportCsv is read-only but triggers a file download artifact. The diff dialog (step 6) and severity filter (step 5) need >=1 row; MODULE HINT says rows may exist, but if the table is empty capture the 'No audit events' empty state instead and drop steps 5-6. No writes."
+      },
+      {
+        "title": "Google Calendar OAuth status page renders org strip, connection banner, and sync settings (read-only)",
+        "journeySteps": [
+          "Google Calendar settings loaded showing Settings / Google Calendar breadcrumb and the 'Connect My Calendar' header button",
+          "Org status strip showing Trainers connected (e.g. '0 of N'), Events synced today, Conflicts detected, and Last org sync pills",
+          "'My calendar not connected' amber banner with its Connect action (owner's calendar not linked on the pristine tenant)",
+          "Sync Settings sidebar showing Sync direction radios with 'Two-way (recommended)' selected and the Conflict resolution radios",
+          "Calendars synced section showing the 'No calendars found' empty hint"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Renders via googleCalendar.status, googleCalendar.orgStatus (uses MOVE's real trainer count), and googleCalendar.listConnectedCalendars — all queries. Do NOT click Connect/Reconnect (redirects to /auth/google-calendar/initiate, leaves the app and can create a real OAuth connection), and do NOT click Save settings / Sync now / Disconnect (those call updateSettings/syncNow/disconnect mutations). If a connection already exists, capture the emerald 'Your calendar is connected' banner instead of the amber one. No writes."
+      },
+      {
+        "title": "GoHighLevel integration page renders org-wide connection, approval queue, and branch table (read-only)",
+        "journeySteps": [
+          "GoHighLevel Integration page loaded at /go-highlevel-integration with heading and 'Connect each branch to its GoHighLevel sub-account' subtitle",
+          "Organization-Wide GHL Connection card showing the connect form (GHL Location ID + Private Integration Token) or, if already linked, the green Connected badge",
+          "Inbound Approval Queue card showing the gate toggle and the 'No contacts awaiting approval.' empty state",
+          "Branch Connections table listing MOVE's branches, each row marked 'Not connected'",
+          "Sync Events card showing the 'No sync events yet.' empty state"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Route guard requires user_management:update (franchisee owner has it). Render-only via ghl.getOrgShared, ghl.listPendingContacts, ghl.listBranchLinks, ghlSync.listEvents and hierarchy.listNodes (23 branches). Do NOT click Connect, Disconnect, the approval-gate toggle, Approve, or Reject — those are mutations (connectOrgShared / setApprovalGate / approvePendingContact etc.) that write to the pristine MOVE tenant. Pending-contacts and sync-events are expected empty on a fresh tenant."
+      },
+      {
+        "title": "GoHighLevel per-branch Connect dialog opens with credential form (read-only wizard-open)",
+        "journeySteps": [
+          "GoHighLevel Integration page with the Branch Connections table visible",
+          "Connect clicked on a 'Not connected' branch row",
+          "'Connect GHL: <branch>' dialog open showing GHL Location ID, GHL API Key, and the optional Existing Branch custom field ID inputs",
+          "Dialog dismissed via Cancel with no credentials submitted"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Opening and cancelling the dialog performs no network mutation — it only toggles local React state (connectBranchId). EXPLICITLY do not click the dialog's final Connect button: ghl.connectBranch would write a branch link (and call GHL) on the production tenant. Proves the connect form renders post-migration. Requires user_management:update."
+      }
+    ]
+  },
+  {
+    "module": "overview-dashboard",
+    "routes": [
+      "/dashboard (apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx -> DashboardLaunchpad)",
+      "/dashboard/overview (apps/web/src/routes/_authenticated/dashboard/_layout/overview.tsx?period=today|this_week|this_month|this_year -> DashboardPage)"
+    ],
+    "procedures": [
+      {
+        "name": "analytics.getDashboardKpis",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getStaffPerformance",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getRevenueSeries",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getMemberCountSeries",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getChurnSeries",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getLtvSeries",
+        "type": "query"
+      },
+      {
+        "name": "analytics.getClassFillRateSeries",
+        "type": "query"
+      },
+      {
+        "name": "salesOrders.largestToday",
+        "type": "query"
+      },
+      {
+        "name": "members.newToday",
+        "type": "query"
+      },
+      {
+        "name": "auditLogs.list",
+        "type": "query"
+      },
+      {
+        "name": "appointments.list",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listPending",
+        "type": "query"
+      },
+      {
+        "name": "packageInstances.listExpiring",
+        "type": "query"
+      },
+      {
+        "name": "installments.listUpcoming",
+        "type": "query"
+      },
+      {
+        "name": "payouts.list",
+        "type": "query"
+      },
+      {
+        "name": "refunds.list",
+        "type": "query"
+      }
+    ],
+    "screens": [
+      "Dashboard launchpad (/dashboard): header with 'Dashboard' title + ScopeSwitcher; left 'Daily tasks' card rail of 8 permission-gated cards (New Sale, Create Customer, View Customers, Renewals/Expiring, Installments, Refunds & Cancellations, Commission Payout, Trainer Schedule) with amber count badges; right keep-alive master/detail panel",
+      "Launchpad detail panels (embed other modules): New Sale=PosWorkflow, Create Customer=AddCustomerForm, View Customers=CustomersPanel, Renewals=MembershipsPage, Installments=PackageInstallmentsPage, Refunds=RefundsPanel, Commission Payout=PayoutsTab, Trainer Schedule=SchedulePanel",
+      "ScopeSwitcher popover: searchable country->state->branch tree with pinned 'All' entry, check marks; degrades to static label when only one accessible node",
+      "Overview (/dashboard/overview) DashboardHeader: 'Dashboard / Overview' breadcrumb, ScopeSwitcher, period pills (Today/Week/Month/Year), Refresh button, 'New Sale' link",
+      "HeroSection: live org banner + big month/today revenue in MYR with vs-previous-period delta badge, 'N orders / N active members' line, and 2x2 KPI grid (Today's Revenue, Appointments completed/total, Active Members +new today, Largest Sale Today)",
+      "Analytics 12-col grid (admin/manager only for most): Revenue Trend card (chart), Revenue by Branch card, 'Needs attention' Pending approvals (PendingApprovalsInline), Top Performers card, Recent Activity card, Today's Appointments timeline strip",
+      "Loading / error / empty states: skeletons, 'Failed to load + Retry' inline error per card, empty hero (RM0.00), 'No appointments today', empty pending approvals, 'Select an organization to continue' guard"
+    ],
+    "existingCoverage": "The screenshot-agent suite under e2e-web/ does NOT cover this module at all — it only holds settings/email journeys (9, treat as covered) plus a POS installment read-path screenshot test. So overview-dashboard has zero screenshot coverage. There ARE Playwright (non-screenshot) journey specs in e2e/ that smoke this module: e2e/dashboard-launchpad.journey.spec.ts (P1 admin: landing renders the 'Daily tasks' rail with all 8 cards and clicking a card swaps the panel, asserting the launchpad replaced the old analytics page and analytics now lives at /dashboard/overview), e2e/journeys/01-dashboard-home.admin.journey.spec.ts (P0: /dashboard renders post-login, org context bootstrapped, no error boundary), e2e/batch1.dashboard.spec.ts (TC-01 widgets visible / TC-02 no error boundary), and e2e/dashboard-launchpad-nonadmin.staff.spec.ts (P1 staff: launchpad loads with NO 403s — proves the permission-gated badge/KPI queries degrade gracefully). These prove render/gating in Playwright but produce no reviewable screenshot walkthrough.",
+    "gaps": [
+      "No screenshot proof that the migrated MOVE tenant lands on the launchpad (8 daily-task cards + scope switcher) at /dashboard rather than the old analytics page",
+      "No screenshot proof of the /dashboard/overview KPI hero + 2x2 grid + analytics cards rendering for the admin (franchisee@gmail.com), including the empty-state reality (0 customers, 0 sales_orders -> RM0.00 revenue, 0 orders, 0 active members, empty Largest Sale Today, empty Today's Appointments, empty Recent Activity, empty Pending approvals)",
+      "Period switcher (Today/Week/Month/Year) is unproven by screenshot: clicking a pill rewrites ?period= and changes the hero label ('Month-to-date revenue' -> 'Year-to-date revenue') and re-fires analytics.getDashboardKpis/getRevenueSeries",
+      "Scope switcher narrowing is unproven by screenshot: opening the country->state->branch tree (23 branches / 33 hierarchy nodes) and selecting a branch re-scopes every KPI query via branchId — the core multi-tenant scope-scoped KPI display claim in the module hint",
+      "Launchpad card switching (master/detail keep-alive) and the amber count badges (renewals/installments/refunds/payouts/schedule) are unproven by screenshot",
+      "Per-card inline error/Retry and loading skeleton states are unproven (lower priority)"
+    ],
+    "proposedSpecs": [
+      {
+        "title": "Dashboard launchpad lands with 8 daily-task cards and swaps panels (migration proof)",
+        "journeySteps": [
+          "Logged in as franchisee@gmail.com, /dashboard shows the launchpad header with the 'Dashboard' title and the scope switcher",
+          "Left rail 'Daily tasks' lists all 8 cards: New Sale, Create Customer, View Customers, Renewals/Expiring, Installments, Refunds & Cancellations, Commission Payout, Trainer Schedule",
+          "Default active card (New Sale) shows its POS panel embedded on the right",
+          "Clicking 'View Customers' swaps the right panel to the customer directory empty state (MOVE has 0 customers)",
+          "Clicking 'Installments' swaps the panel to the installments read view (per-installment amounts, no full price)",
+          "No error boundary or 'something went wrong' is visible anywhere on the page"
+        ],
+        "captureCount": 6,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Proves the launchpad migration: landing is the master/detail launchpad, not analytics. Stay on read panels (View Customers / Installments). Opening the New Sale panel is fine because it only mounts the POS wizard; do NOT advance to checkout/commit. Admin sees all 8 cards; backed by installments.listUpcoming/refunds.list/payouts.list/packageInstances.listExpiring badge queries."
+      },
+      {
+        "title": "Overview KPI dashboard renders the scope-scoped hero + analytics grid (empty-state)",
+        "journeySteps": [
+          "Navigate to /dashboard/overview; the header shows 'Dashboard / Overview', the scope switcher, and the period pills with 'Month' active",
+          "Hero shows the live org banner ('MOVE Private Fitness · Live') and month-to-date revenue as RM0.00 with '0 orders · 0 active members'",
+          "The 2x2 KPI grid renders Today's Revenue, Appointments (0/0), Active Members, and Largest Sale Today showing the no-data dash",
+          "Analytics row renders the Revenue Trend and Revenue by Branch cards (admin view)",
+          "'Needs attention' Pending approvals, Top Performers, and Recent Activity cards render",
+          "Today's Appointments timeline shows its empty 'no appointments today' state",
+          "Footer reads 'Avantej Core · MOVE Private Fitness' with no error boundary"
+        ],
+        "captureCount": 7,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P1",
+        "notes": "Read-only render of the migrated analytics page. Because MOVE has 0 sales/0 customers/0 appointments the spec doubles as the empty-state proof (RM0.00, 0/0, dashes). Drives analytics.getDashboardKpis (x2), getStaffPerformance, getRevenueSeries, salesOrders.largestToday, members.newToday, auditLogs.list, appointments.list, packageInstances.listPending. Captions must read the real RM0.00 values, not assume seeded numbers."
+      },
+      {
+        "title": "Overview period switcher updates hero label and URL",
+        "journeySteps": [
+          "On /dashboard/overview with 'Month' active, the hero reads 'Month-to-date revenue'",
+          "Click the 'Year' pill; the active pill moves to Year and the URL gains ?period=this_year",
+          "The hero label changes to 'Year-to-date revenue' and the KPI figures re-render after the refetch",
+          "Click the 'Today' pill; the hero label changes to \"Today's revenue\" and the URL shows ?period=today"
+        ],
+        "captureCount": 4,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Pure read-only interaction; each pill re-fires analytics.getDashboardKpis/getRevenueSeries with a new period and rewrites validateSearch's ?period=. Values stay RM0.00 on prod but the label + active-pill + URL are the observable assertions."
+      },
+      {
+        "title": "Scope switcher narrows KPIs by branch (multi-tenant scope display)",
+        "journeySteps": [
+          "On /dashboard/overview the scope switcher trigger shows the 'All · <top node>' label",
+          "Open the switcher popover showing the country -> state -> branch tree (MOVE has 23 branches / 33 nodes) with the search box",
+          "Type a branch name to filter the list down to matching nodes",
+          "Select a single branch; the popover closes and the trigger now shows that branch name",
+          "The hero and KPI cards re-render scoped to that branch (branchId passed to every analytics query)"
+        ],
+        "captureCount": 5,
+        "prodMutationClass": "read-only",
+        "authorability": "easy",
+        "priority": "P2",
+        "notes": "Proves the scope-scoped KPI display + RBAC ceiling claim from the module hint. Read-only: selecting a scope only re-queries with branchId via resolveScopeNodeIds/guardBranchAccessible. Single-country tenant means the combined MYR total stays (no per-country cards). Pick a real branch name observed in the open popover rather than assuming one."
+      }
+    ]
+  }
+]

@@ -1,15 +1,15 @@
 {
-	"title": "Settings → Email: add and remove a sending-address alias",
-	"module": "settings",
-	"prodMutationClass": "create-update-delete-test-row",
-	"journey": [
-		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
-		"Seed a sending-domain row with DNS records so the row + DNS section render",
-		"Navigate to /dashboard/settings/email and expand DNS records on the row",
-		"In the Sending-address aliases panel, confirm it starts empty ('No aliases yet')",
-		"Enter local-part 'billing' and label 'Billing dept', click Add alias",
-		"Confirm the alias appears in the list as billing@<domain> (Billing dept)",
-		"Click Remove on the billing alias",
-		"Confirm the alias is gone and the panel returns to the empty 'No aliases yet' state"
-	]
+  "title": "Settings \u2192 Email: add and remove a sending-address alias",
+  "module": "settings",
+  "prodMutationClass": "create-update-delete-test-row",
+  "journey": [
+    "Sign in as admin@moveprivatefitness.com (MOVE Owner)",
+    "Seed a sending-domain row with DNS records so the row + DNS section render",
+    "Navigate to /dashboard/settings/email and expand DNS records on the row",
+    "In the Sending-address aliases panel, confirm it starts empty ('No aliases yet')",
+    "Enter local-part 'billing' and label 'Billing dept', click Add alias",
+    "Confirm the alias appears in the list as billing@<domain> (Billing dept)",
+    "Click Remove on the billing alias",
+    "Confirm the alias is gone and the panel returns to the empty 'No aliases yet' state"
+  ]
 }

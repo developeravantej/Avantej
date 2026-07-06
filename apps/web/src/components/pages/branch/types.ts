@@ -11,7 +11,19 @@ export type NodeWithStats = {
 	membersCount: number | null;
 	staffCount: number | null;
 	monthRevenueCents: number | null;
+	/** WS1: ISO currency of this node's country (from the stats API). */
+	currency?: string;
 	stale: boolean;
+	/**
+	 * WS3 branch company/tax profile. Only present when merged in from the
+	 * getBranchDetails query for a selected branch — absent on the stats list.
+	 */
+	companyLegalName?: string | null;
+	registrationNumber?: string | null;
+	taxId?: string | null;
+	invoicePrefix?: string | null;
+	receiptPrefix?: string | null;
+	branchTaxRateId?: string | null;
 };
 
 // Opening hours shape from DB: { monday: { open: string; close: string } | null, ... }

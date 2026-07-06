@@ -30,6 +30,13 @@ export const hierarchyUpdateProcedures = {
 				name: z.string().min(1).optional(),
 				address: z.string().nullable().optional(),
 				picUserId: z.string().nullable().optional(),
+				// WS3 branch company/tax profile (branch-only, all optional).
+				companyLegalName: z.string().nullable().optional(),
+				registrationNumber: z.string().nullable().optional(),
+				taxId: z.string().nullable().optional(),
+				invoicePrefix: z.string().nullable().optional(),
+				receiptPrefix: z.string().nullable().optional(),
+				branchTaxRateId: z.string().uuid().nullable().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -72,6 +79,24 @@ export const hierarchyUpdateProcedures = {
 			if (input.picUserId !== undefined) {
 				updateParams.picUserId = input.picUserId;
 			}
+			if (input.companyLegalName !== undefined) {
+				updateParams.companyLegalName = input.companyLegalName;
+			}
+			if (input.registrationNumber !== undefined) {
+				updateParams.registrationNumber = input.registrationNumber;
+			}
+			if (input.taxId !== undefined) {
+				updateParams.taxId = input.taxId;
+			}
+			if (input.invoicePrefix !== undefined) {
+				updateParams.invoicePrefix = input.invoicePrefix;
+			}
+			if (input.receiptPrefix !== undefined) {
+				updateParams.receiptPrefix = input.receiptPrefix;
+			}
+			if (input.branchTaxRateId !== undefined) {
+				updateParams.branchTaxRateId = input.branchTaxRateId;
+			}
 
 			// Capture pre-update state for GHL branch rename sync.
 			const preUpdateNode = await tenantDb.query.hierarchyNodes.findFirst({
@@ -89,12 +114,24 @@ export const hierarchyUpdateProcedures = {
 				// Fetch branch-specific details (split off into branch_details in H2)
 				let nodeAddress: string | null = null;
 				let nodePicUserId: string | null = null;
+				let nodeCompanyLegalName: string | null = null;
+				let nodeRegistrationNumber: string | null = null;
+				let nodeTaxId: string | null = null;
+				let nodeInvoicePrefix: string | null = null;
+				let nodeReceiptPrefix: string | null = null;
+				let nodeBranchTaxRateId: string | null = null;
 				if (node.type === "branch") {
 					const details = await tenantDb.query.branchDetails.findFirst({
 						where: eq(branchDetails.nodeId, node.id),
 					});
 					nodeAddress = details?.address ?? null;
 					nodePicUserId = details?.picUserId ?? null;
+					nodeCompanyLegalName = details?.companyLegalName ?? null;
+					nodeRegistrationNumber = details?.registrationNumber ?? null;
+					nodeTaxId = details?.taxId ?? null;
+					nodeInvoicePrefix = details?.invoicePrefix ?? null;
+					nodeReceiptPrefix = details?.receiptPrefix ?? null;
+					nodeBranchTaxRateId = details?.branchTaxRateId ?? null;
 				}
 
 				// Sync updates to control panel organization_branches registry
@@ -200,6 +237,12 @@ export const hierarchyUpdateProcedures = {
 					parentId: node.parentId,
 					address: nodeAddress,
 					picUserId: nodePicUserId,
+					companyLegalName: nodeCompanyLegalName,
+					registrationNumber: nodeRegistrationNumber,
+					taxId: nodeTaxId,
+					invoicePrefix: nodeInvoicePrefix,
+					receiptPrefix: nodeReceiptPrefix,
+					branchTaxRateId: nodeBranchTaxRateId,
 					createdAt: node.createdAt,
 					updatedAt: node.updatedAt,
 					ghlSync,

@@ -43,7 +43,12 @@ const DownloadInvoiceButton: React.FC<{ row: PaymentRow }> = ({ row }) => {
 				organizationId: row.organization_id,
 				id: row.id,
 			});
-			await downloadInvoiceDoc(detail);
+			await downloadInvoiceDoc({
+				invoice: detail.invoice,
+				items: detail.items,
+				// Issuing-branch company/tax profile (WS3); null → single-org fallback.
+				branch: detail.branch,
+			});
 		} catch (err) {
 			toast.error(
 				err instanceof Error ? err.message : "Failed to generate invoice PDF",

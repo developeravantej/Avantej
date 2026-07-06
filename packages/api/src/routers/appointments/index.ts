@@ -6,6 +6,7 @@ import { appointmentsCreditsProcedures } from "./crud-credits.procedures";
 import { appointmentsRecurrenceProcedures } from "./recurrence.procedures";
 import { appointmentsSeriesCancelProcedures } from "./series-cancel.procedures";
 import { appointmentsScheduleProcedures } from "./schedule.procedures";
+import { appointmentsBulkProcedures } from "./bulk.procedures";
 
 export const appointmentsRouter = {
 	...appointmentsListProcedures,
@@ -15,4 +16,5 @@ export const appointmentsRouter = {
 	...appointmentsRecurrenceProcedures,
 	...appointmentsSeriesCancelProcedures,
 	...appointmentsScheduleProcedures,
+	...appointmentsBulkProcedures,
 };

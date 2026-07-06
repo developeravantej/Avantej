@@ -25,3 +25,5 @@ export {
 
 // Export RBAC seed function
 export { seedRBACData } from "./seed-rbac";
+// Export default tax-rate seed (POS requires an active tax rate to record sales)
+export { seedDefaultTaxRate } from "./seed-default-tax-rate";

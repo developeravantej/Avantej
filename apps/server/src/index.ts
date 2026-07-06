@@ -87,7 +87,25 @@ function getAllowedOrigin(
 		allowed.add("http://avantej.localhost:3001");
 	}
 
-	if (requestOrigin && allowed.has(requestOrigin)) return requestOrigin;
+	if (requestOrigin) {
+		if (allowed.has(requestOrigin)) return requestOrigin;
+		// Dynamic per-tenant subdomains (Phase A): reflect any https origin whose host
+		// is avantej.com or *.avantej.com. Credentials mode is on, so we echo the EXACT
+		// origin (never "*"). Safe because avantej.com is a domain we own. This relaxes
+		// the SI-009 prod-only policy intentionally — see the comment above getAllowedOrigin.
+		try {
+			const u = new URL(requestOrigin);
+			const host = u.hostname.toLowerCase();
+			if (
+				u.protocol === "https:" &&
+				(host === "avantej.com" || host.endsWith(".avantej.com"))
+			) {
+				return requestOrigin;
+			}
+		} catch {
+			/* malformed Origin header — fall through to default */
+		}
+	}
 
 	// Default: first env origin if available; empty string in production (no echo),
 	// fallback to localhost:3001 only in dev when CORS_ORIGIN is unset.
@@ -172,6 +190,15 @@ app.use("/*", async (c, next) => {
 	for (const [k, v] of Object.entries(corsHeaders)) {
 		c.header(k, v);
 	}
+});
+
+// Stash the per-request send_email binding so the Cloudflare Email provider
+// (invoked inside sendEmail(), which has no request context) can reach it.
+// The binding object is identical across requests, so caching it is safe.
+app.use("/*", async (c, next) => {
+	const { rememberEmailBinding } = await import("./lib/cloudflare-email");
+	rememberEmailBinding((c.env as Record<string, unknown>).EMAIL);
+	await next();
 });
 
 // Database middleware: Creates request-scoped connection pools
@@ -464,6 +491,26 @@ export default {
 							console.error(`[scheduled] notification-dispatch failed:`, e),
 						),
 				);
+
+				// WS4 — auto-complete confirmed appointments whose window has closed
+				// (routes through updateAppointment so commission + audit fire).
+				const { runAppointmentAutoComplete } = await import(
+					"@/services/appointment-autocomplete.service"
+				);
+				ctx.waitUntil(
+					runAppointmentAutoComplete({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] appointment-autocomplete done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] appointment-autocomplete failed:`, e),
+						),
+				);
 			} else if (cron === "0 9 * * *") {
 				const { runOnboardingAlerts } = await import(
 					"@/services/onboarding-alerts.service"
@@ -577,6 +624,27 @@ export default {
 						)
 						.catch((e) =>
 							console.error(`[scheduled] package-expiry failed:`, e),
+						),
+				);
+				// WS5 — payroll-period auto-lock. Locks each branch's most recent
+				// closed cycle once its grace window has elapsed so payouts can no
+				// longer be voided/disputed against a settled period. Folded into
+				// this existing slot to stay within the Workers Free 5-cron limit.
+				const { runPayrollAutoLock } = await import(
+					"@/services/payroll-autolock.service"
+				);
+				ctx.waitUntil(
+					runPayrollAutoLock({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] payroll-autolock done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] payroll-autolock failed:`, e),
 						),
 				);
 				// Heal drifted customer_name snapshots (rename paths that bypass the

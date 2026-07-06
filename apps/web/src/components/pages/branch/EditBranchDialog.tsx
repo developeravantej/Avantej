@@ -42,6 +42,19 @@ export function EditBranchDialog({
 	setEditRegionId,
 	editAreaId,
 	setEditAreaId,
+	editCompanyLegalName,
+	setEditCompanyLegalName,
+	editRegistrationNumber,
+	setEditRegistrationNumber,
+	editTaxId,
+	setEditTaxId,
+	editInvoicePrefix,
+	setEditInvoicePrefix,
+	editReceiptPrefix,
+	setEditReceiptPrefix,
+	editBranchTaxRateId,
+	setEditBranchTaxRateId,
+	taxRates,
 	allNodes,
 	countries,
 	regions,
@@ -66,6 +79,19 @@ export function EditBranchDialog({
 	setEditRegionId: (v: string) => void;
 	editAreaId: string;
 	setEditAreaId: (v: string) => void;
+	editCompanyLegalName: string;
+	setEditCompanyLegalName: (v: string) => void;
+	editRegistrationNumber: string;
+	setEditRegistrationNumber: (v: string) => void;
+	editTaxId: string;
+	setEditTaxId: (v: string) => void;
+	editInvoicePrefix: string;
+	setEditInvoicePrefix: (v: string) => void;
+	editReceiptPrefix: string;
+	setEditReceiptPrefix: (v: string) => void;
+	editBranchTaxRateId: string;
+	setEditBranchTaxRateId: (v: string) => void;
+	taxRates: { id: string; name: string; rateInBasisPoints: number }[];
 	allNodes: HierarchyNode[];
 	countries: HierarchyNode[];
 	regions: HierarchyNode[];
@@ -198,6 +224,93 @@ export function EditBranchDialog({
 									allowClear
 									disabled={isPending}
 								/>
+							</div>
+						)}
+
+						{editingNode?.type === "branch" && (
+							<div className="space-y-4 pt-4 border-t border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+									Company &amp; Tax
+								</p>
+
+								<div className="space-y-2">
+									<Label htmlFor="edit-company-legal-name">
+										Company Legal Name
+									</Label>
+									<Input
+										id="edit-company-legal-name"
+										value={editCompanyLegalName}
+										onChange={(e) => setEditCompanyLegalName(e.target.value)}
+										placeholder="Registered company name"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="edit-registration-number">
+										Registration No.
+									</Label>
+									<Input
+										id="edit-registration-number"
+										value={editRegistrationNumber}
+										onChange={(e) => setEditRegistrationNumber(e.target.value)}
+										placeholder="Company registration number"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="edit-tax-id">Tax ID</Label>
+									<Input
+										id="edit-tax-id"
+										value={editTaxId}
+										onChange={(e) => setEditTaxId(e.target.value)}
+										placeholder="Tax identification number"
+									/>
+								</div>
+
+								<div className="grid grid-cols-2 gap-3">
+									<div className="space-y-2">
+										<Label htmlFor="edit-invoice-prefix">Invoice Prefix</Label>
+										<Input
+											id="edit-invoice-prefix"
+											value={editInvoicePrefix}
+											onChange={(e) => setEditInvoicePrefix(e.target.value)}
+											placeholder="e.g. INV-KL-"
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="edit-receipt-prefix">Receipt Prefix</Label>
+										<Input
+											id="edit-receipt-prefix"
+											value={editReceiptPrefix}
+											onChange={(e) => setEditReceiptPrefix(e.target.value)}
+											placeholder="e.g. RCP-KL-"
+										/>
+									</div>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="edit-tax-rate">Tax Rate</Label>
+									<Select
+										value={editBranchTaxRateId || "__none__"}
+										onValueChange={(v) =>
+											setEditBranchTaxRateId(v === "__none__" ? "" : v)
+										}
+									>
+										<SelectTrigger id="edit-tax-rate">
+											<SelectValue placeholder="Use country / org default" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="__none__">
+												Use country / org default
+											</SelectItem>
+											{taxRates.map((r) => (
+												<SelectItem key={r.id} value={r.id}>
+													{r.name} · {r.rateInBasisPoints / 100}%
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</div>
 						)}
 
