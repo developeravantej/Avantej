@@ -1,0 +1,110 @@
+{
+  "tests": [
+    {
+      "relpath": "WS1-multi-currency/liability.journey.json",
+      "title": "WS1 · Multi-currency — per-currency commission liability",
+      "status": "pass",
+      "durMs": 3200,
+      "steps": [
+        "Open Finance → Commissions → Liability tab",
+        "Liability is tracked & totalled per currency so multi-country tenants aren't co-mingled",
+        "Branch revenue renders in the branch's own currency (MY vs TH package prices seen in the POS tour)",
+        "Approved/Paid/Net-Payable per staff, with branch + category + role filters and Export CSV"
+      ],
+      "screenshots": [
+        { "file": "WS1-multi-currency/01-liability.png", "caption": "Commission Liability tab — Approved(unpaid)/Paid/Net-Payable, per-staff liability, branch+category+role filters, Export CSV (no activity in this window)" }
+      ]
+    },
+    {
+      "relpath": "WS2-reports/reports-suite.journey.json",
+      "title": "WS2 · Operational reports suite (10 reports)",
+      "status": "pass",
+      "durMs": 4100,
+      "steps": [
+        "Open Reports",
+        "Overview: revenue / active-members / churn / LTV / class-fill KPIs + 30-day revenue trend",
+        "Ten report tabs — Sales, Collections, Outstanding, Expiring Credits, Coach Productivity, Refunds & Cancellations, Sales Mix, Appointments, Redemptions, Services Owed",
+        "Every report: branch scope, tax-basis toggle, PDF/CSV export + scheduled email"
+      ],
+      "screenshots": [
+        { "file": "WS2-reports/01-overview.png", "caption": "Reports Overview — KPI cards (126 active members real data), Revenue Trend chart, all 10 report tabs, PDF/CSV/Schedule-Email" },
+        { "file": "WS2-reports/02-sales-report.png", "caption": "Sales report — row-level table, Incl-tax / Pre-tax basis toggle, Export CSV (no sales in this window on the test tenant)" }
+      ]
+    },
+    {
+      "relpath": "WS3-branch-tax/tax-rates.journey.json",
+      "title": "WS3 · Per-branch tax + company profile + gapless numbering",
+      "status": "pass",
+      "durMs": 2600,
+      "steps": [
+        "Open Finance → Tax Rates",
+        "Rates scoped by COUNTRY (Malaysia SST 8%) or Org-wide (No-Tax 0% default)",
+        "Effective-from / effective-to dating + default flag per rate",
+        "Per-branch company profile + gapless SO/INV/PAY numbering — proven live in the POS tour (-000006)"
+      ],
+      "screenshots": [
+        { "file": "WS3-branch-tax/01-tax-rates.png", "caption": "Tax Rates — Malaysia SST 8% (country-scoped) + No-Tax 0% (org-wide default); COUNTRY column, effective dates, default flag" }
+      ]
+    },
+    {
+      "relpath": "WS4-appointments/lifecycle.journey.json",
+      "title": "WS4 · Appointment lifecycle automation",
+      "status": "pass",
+      "durMs": 3400,
+      "steps": [
+        "Open Appointments",
+        "Trainer roster (102 trainers) + today's bookings on the schedule",
+        "Bulk status actions (updateStatusBulk) applied to selected appointments from the list",
+        "Hourly cron auto-completes past-due appointments (system actor)"
+      ],
+      "screenshots": [
+        { "file": "WS4-appointments/01-appointments.png", "caption": "Appointments schedule — 102-trainer roster + today's bookings; WS4 adds bulk status actions + the hourly auto-complete cron" }
+      ]
+    },
+    {
+      "relpath": "WS5-payroll/payroll-periods.journey.json",
+      "title": "WS5 · Month-based payroll period lock",
+      "status": "pass",
+      "durMs": 2900,
+      "steps": [
+        "Open Finance → Payroll Periods",
+        "Pick a branch + reference date, then Lock current period",
+        "A locked window freezes that commission month — write-gate blocks void / dispute / cancel inside it",
+        "State / Locked-at / Locked-by / Lock-kind tracked per branch"
+      ],
+      "screenshots": [
+        { "file": "WS5-payroll/01-payroll-periods.png", "caption": "Payroll Periods — per-branch period lock; a real LOCKED row (MOVE BUKIT JALIL, Jun period, system-locked) with state/locked-at/lock-kind" }
+      ]
+    },
+    {
+      "relpath": "WS6-import/import-data.journey.json",
+      "title": "WS6 · Self-service CSV import",
+      "status": "pass",
+      "durMs": 2500,
+      "steps": [
+        "Open Settings → Import Data",
+        "Choose what to import — Clients / Packages / Payments / Opening balances (loyalty credit)",
+        "Upload a CSV file or paste CSV",
+        "Preview validates every row before anything is written, then Commit; recent-imports history kept"
+      ],
+      "screenshots": [
+        { "file": "WS6-import/01-import.png", "caption": "Import Data — 4 import types, CSV upload/paste, Preview (validate-before-write) → Commit import, with import history" }
+      ]
+    },
+    {
+      "relpath": "WS7-export/export-data.journey.json",
+      "title": "WS7 · Self-service CSV export",
+      "status": "pass",
+      "durMs": 2500,
+      "steps": [
+        "Open Settings → Export Data",
+        "Exports respect current branch scope (RBAC — you only get branches you can access)",
+        "14 individual datasets, each Download CSV",
+        "Full backup → single ZIP bundling every dataset"
+      ],
+      "screenshots": [
+        { "file": "WS7-export/01-export.png", "caption": "Export Data — branch-scoped; Export-all ZIP + 14 datasets incl 'Installments — installment amount, not full package price'" }
+      ]
+    }
+  ]
+}

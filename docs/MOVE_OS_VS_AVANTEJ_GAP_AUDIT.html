@@ -1,0 +1,381 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MOVE OS vs Avantej — Gap Audit</title><style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#e5e5e5;--card:#fafafa;--code:#f4f4f5;
+--present:#16a34a;--partial:#d97706;--absent:#dc2626;--p0:#dc2626;--p1:#d97706;--p2:#6b7280;}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0d0f;--fg:#e8e8ea;--mut:#9a9aa2;--line:#26262b;--card:#161619;--code:#1c1c20;}}
+:root[data-theme=light]{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#e5e5e5;--card:#fafafa;--code:#f4f4f5;}
+:root[data-theme=dark]{--bg:#0d0d0f;--fg:#e8e8ea;--mut:#9a9aa2;--line:#26262b;--card:#161619;--code:#1c1c20;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 64px;}
+header h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--mut);margin:0 0 18px;max-width:80ch}
+.counts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.cbox{border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--mut);font-weight:600}
+.cbox .n{display:block;font-size:24px;color:var(--fg);font-weight:800;line-height:1}
+.cbox.present{border-color:var(--present)}.cbox.present .n{color:var(--present)}
+.cbox.partial{border-color:var(--partial)}.cbox.partial .n{color:var(--partial)}
+.cbox.absent{border-color:var(--absent)}.cbox.absent .n{color:var(--absent)}
+section{margin-top:34px}h2{font-size:19px;border-bottom:1px solid var(--line);padding-bottom:6px;letter-spacing:-.01em}
+h4{margin:0 0 8px;font-size:15px}.note{color:var(--mut);font-size:13px;margin:.2em 0 12px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.matrix{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+table.matrix th,table.matrix td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.matrix th{background:var(--card);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+table.matrix tr:last-child td{border-bottom:0}
+.matrix.small{font-size:12.5px}.dom{font-weight:600;white-space:nowrap}.gap{color:var(--mut)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;color:#fff}
+.pill.present{background:var(--present)}.pill.partial{background:var(--partial)}.pill.absent{background:var(--absent)}
+.prio{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;color:#fff}
+.prio.p0{background:var(--p0)}.prio.p1{background:var(--p1)}.prio.p2{background:var(--p2)}
+.card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;background:var(--card)}
+.absent-card{border-left:4px solid var(--absent)}
+.card p{margin:.4em 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:640px){.two{grid-template-columns:1fr}}
+.card ul{margin:.3em 0;padding-left:18px}.card li{margin:.2em 0;font-size:13.5px}
+details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:6px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--code);padding:2px 5px;border-radius:5px}
+p.mono{display:block;padding:10px 12px;white-space:pre-wrap;line-height:1.5}
+ol.backlog{padding-left:0;list-style:none;counter-reset:bl}
+.bl{counter-increment:bl;border:1px solid var(--line);border-radius:10px;padding:11px 14px 11px 44px;margin:8px 0;position:relative;font-size:13.5px}
+.bl::before{content:counter(bl);position:absolute;left:12px;top:11px;font-weight:800;color:var(--mut);font-size:13px}
+.bl.p0{border-left:4px solid var(--p0)}.bl.p1{border-left:4px solid var(--p1)}.bl.p2{border-left:4px solid var(--p2)}
+.bl .prio{margin-right:6px}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--mut);font-size:12px}
+</style></head><body><div class="wrap">
+<header>
+  <h1>MOVE OS &nbsp;vs&nbsp; Avantej — Tenant Dashboard Gap Audit</h1>
+  <p class="sub">Live crawl of <span class="mono">move-session-billing-staging.onrender.com</span> (competitor tenant OS) vs the Avantej tenant dashboard codebase. 18 domains audited by parallel repo agents. <b>MOVE OS is a single-region-per-tenant, multi-currency gym-billing OS</b>; use it as a feature reference, not an architecture model.</p>
+  <div class="counts">
+    <div class="cbox present"><span class="n">5</span> Present</div>
+    <div class="cbox partial"><span class="n">10</span> Partial</div>
+    <div class="cbox absent"><span class="n">3</span> Absent</div>
+    <div class="cbox total"><span class="n">18</span> Domains</div>
+  </div>
+</header>
+
+<section>
+  <h2>Verdict</h2>
+  <p>Avantej is in a strong position: on the four highest-frequency daily-use modules — Dashboard/KPIs, Clients, Commission ledger, and Users/RBAC — it is already at or beyond MOVE OS parity. Its dashboard is broader (staff leaderboard, churn/LTV/class-fill, hierarchy-aware scope selector), its Customer-360, appointments engine (recurrence, credit debit, 24h locks, status history), and its versioned 'drive-engine' commission settings are genuinely richer than the MOVE spec. Of 17 audited domains, 4 are present, 10 are partial, and only 3 are truly absent. The headline is that Avantej is not missing whole product areas so much as missing specific, high-leverage sub-features inside areas it already has — plus three genuinely absent operational modules.</p>
+<p>The biggest gaps cluster around money correctness, back-office operations, and onboarding, and these are the P0s. First, single-currency assumptions are hardcoded across the commission ledger, branch display, and package pricing — a multi-country tenant (MOVE is seeded MY/TH/SG) would see co-mingled, incorrect totals, which is a correctness bug, not just a cosmetic one. Second, the Reports area is only an aggregate KPI dashboard: none of MOVE's 10 row-level operational reports (Sales, Collections, AR-aging, Coach productivity, Refunds, Redemptions, Services-owed) are surfaced even though the underlying data exists — this is the single largest surface-area gap. Third, branches lack a per-branch company/tax profile, per-branch tax rates, and per-branch invoice/receipt numbering, which are compliance-relevant for multi-outlet operators. Fourth, payroll locking is per-split/per-batch rather than a month-keyed Open/Locked period with auto-lock and enforced immutability, so back-dated edits can silently land in a settled month. And fifth, there is no self-service CSV import — the only importer is a developer-run xlsx CLI, which blocks scalable tenant onboarding.</p>
+<p>The three absent modules — Import (CSV), Data Health, and Danger Zone — are the clearest 'missing modules,' but they are not equal in urgency. Import is P0 because it gates every new tenant's onboarding and is the difference between a developer-assisted and a self-serve business. Data Health is P1: valuable for trust and catching money leaks, and Avantej already has the DriftTab UI pattern to copy. Danger Zone is P2 — expected polish for sandbox/demo tenants but not on the money-flow critical path. Encouragingly, nearly every gap has existing scaffolding to build on (the ETL loaders for import, the Stripe reconciler UI for data health, the CSV codec and generic table-dump for exports, commission_cycle_configs for payroll windows), so the work is largely surfacing and generalizing capabilities that already exist rather than green-field building. The recommended sequence is: close the multi-currency correctness gap and ship the reports suite first, then per-branch tax/numbering and payroll locking, then self-service import — after which Avantej would meet or exceed MOVE OS across every core money and operations surface.</p>
+</section>
+
+<section>
+  <h2>Comparison matrix</h2>
+  <p class="note">Sorted by priority (P0 = money/ops correctness, build first) then status. "Gap" = the single most important delta vs MOVE OS.</p>
+  <div class="scroll"><table class="matrix">
+    <thead><tr><th>Module</th><th>Avantej</th><th>Priority</th><th>Key gap vs MOVE OS</th></tr></thead>
+    <tbody><tr>
+    <td class="dom">Import (CSV)</td>
+    <td><span class="pill absent">Absent</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">No self-service dashboard import — only a developer-run xlsx CLI ETL; no CSV, no templates, no in-UI row validation/preview.</td>
+  </tr>
+<tr>
+    <td class="dom">Branches (hierarchy + tax profile)</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">No per-branch company/tax profile, tax is org-global not per-branch/country, no per-branch invoice/receipt prefixes, currency hardcoded MYR.</td>
+  </tr>
+<tr>
+    <td class="dom">Payroll Periods</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">Locking is per-split/per-batch only — no month-keyed Open/Locked period entity, no auto-lock cron, no lock-now/unlock-with-reason flow.</td>
+  </tr>
+<tr>
+    <td class="dom">Reports suite (10 reports)</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">Only aggregate KPI tiles/charts exist — none of MOVE's 10 row-level operational reports (Sales, Collections, AR-aging, Coach productivity, etc.) are surfaced.</td>
+  </tr>
+<tr>
+    <td class="dom">Sessions / Appointments</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">No Month calendar view, no multi-select bulk complete/cancel, and no cron that auto-completes sessions + settles coach pay after the cancel window closes.</td>
+  </tr>
+<tr>
+    <td class="dom">Commission (ledger)</td>
+    <td><span class="pill present">Present</span></td>
+    <td><span class="prio p0">P0</span></td>
+    <td class="gap">Hardcoded single-currency (MYR) — no per-currency grouping, so multi-country tenants see co-mingled/incorrect grand totals.</td>
+  </tr>
+<tr>
+    <td class="dom">Data Health (integrity checks)</td>
+    <td><span class="pill absent">Absent</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">No tenant-facing integrity-check suite (credit/installment/commission/allocation/orphan assertions) or 'N of 24 need attention' summary.</td>
+  </tr>
+<tr>
+    <td class="dom">Commission Settings</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">No non-member named payees (e.g. 'HQ Marketing') — every split resolves to a member; no seeded default tier ladder or sales-allocation preset.</td>
+  </tr>
+<tr>
+    <td class="dom">Email Settings (lifecycle)</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">No org-level master switch or per-type admin toggles, 5 of 7 lifecycle emails unimplemented, no tenant-facing delivery-activity log.</td>
+  </tr>
+<tr>
+    <td class="dom">Export (CSV)</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">Only ~5 per-report CSVs vs MOVE's ~25 datasets; full dump is admin-only JSON tied to deletion, no self-serve 'export all' bundle.</td>
+  </tr>
+<tr>
+    <td class="dom">Package Templates</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">Single-currency per-branch pricing, no flat per-session delivery pay, no service code, and no multi-branch availability multi-select.</td>
+  </tr>
+<tr>
+    <td class="dom">Clients (Customers)</td>
+    <td><span class="pill present">Present</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">List lacks Country and Assigned-coach columns, no per-row copy phone/email, no staff-facing stop-emails/stop-offers toggles or 'Ready to offboard' status.</td>
+  </tr>
+<tr>
+    <td class="dom">Dashboard / KPIs</td>
+    <td><span class="pill present">Present</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">No 'Outstanding' KPI beside collected, and the built ExpiringMemberships widget is not wired onto the dashboard.</td>
+  </tr>
+<tr>
+    <td class="dom">Promo Codes</td>
+    <td><span class="pill present">Present</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">Promotions module + POS promo-step exist; verify discount bakes into package price so credits &amp; commission follow it (MOVE's model).</td>
+  </tr>
+<tr>
+    <td class="dom">Users / RBAC</td>
+    <td><span class="pill present">Present</span></td>
+    <td><span class="prio p1">P1</span></td>
+    <td class="gap">No Branch-Manager/Manager-Coach/Viewer roles, single-node scope instead of multi-branch assignment, card grid lacks Tier/Branches columns.</td>
+  </tr>
+<tr>
+    <td class="dom">Danger Zone</td>
+    <td><span class="pill absent">Absent</span></td>
+    <td><span class="prio p2">P2</span></td>
+    <td class="gap">No tenant sandbox reset or per-record-type hard-delete tool with confirmation-phrase gate and dedicated purge audit.</td>
+  </tr>
+<tr>
+    <td class="dom">Account + What's New (changelog)</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p2">P2</span></td>
+    <td class="gap">No product changelog/'What's New' feed, inert Help link, and 'Personal Details' points at the customer list instead of a self-profile page.</td>
+  </tr>
+<tr>
+    <td class="dom">Service Categories</td>
+    <td><span class="pill partial">Partial</span></td>
+    <td><span class="prio p2">P2</span></td>
+    <td class="gap">No Solo/Semi-private Mode field on the category and grid omits Mode + Max-participants columns.</td>
+  </tr></tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Absent modules — the true "missing" (3)</h2>
+  <p class="note">Whole capability areas MOVE OS has that Avantej does not. These are the clearest "mimic" targets.</p>
+  
+  <div class="card absent-card">
+    <h4>Import (CSV) <span class="pill absent">Absent</span></h4>
+    <p><b>MOVE has:</b> A tenant-admin self-service CSV importer in the dashboard: entity picker (Clients, Users, Branches, Service categories, Package templates, Payees, Packages, Payments, Brought-forward balances), downloadable per-entity templates, per-row validation with a preview-before-commit table, and re-runnable idempotent jobs.</p>
+    <p><b>Why it matters:</b> This is the onboarding gate. Every new gym tenant arrives with historical data (members, packages, opening balances) in spreadsheets. Without UI import, onboarding requires a developer to hand-run the xlsx CLI ETL per client — it does not scale, blocks self-serve signups, and today Sales/Payments/Packages/redemptions are marked BLOCKED in that ETL anyway.</p>
+    <details><summary>Build sketch</summary><p class="mono">Add route settings/import/view.tsx with an entity picker + dropzone; add papaparse client-side; new oRPC router packages/api/src/routers/data-import/ (validate.procedures.ts = importPreview with per-row Zod errors, commit.procedures.ts = transactional importCommit) reusing the existing canonical DTOs/loaders (apps/server/scripts/migration/core/canonical.ts + core/loaders/*) and porting core/crosswalk.ts idempotency; header-only CSV template endpoint per entity; add an import_jobs tenant table for history; unblock Payments/Packages/Payees/Service-categories/opening-balance loaders. Guard with requirePermissionOrpc + assertOrgContextMatch.</p></details>
+  </div>
+
+  <div class="card absent-card">
+    <h4>Data Health (integrity checks) <span class="pill absent">Absent</span></h4>
+    <p><b>MOVE has:</b> A tenant-facing 'Data Health' page running a battery of ~24 pass/fail integrity checks over business data (non-negative credit balances, credits &lt;= package size, installment credits sum = package size, unlocked credits reconcile to money collected, commission &lt;= sale, commission-vs-ledger, every sale has allocation rows, orphaned references, unique sign-in emails) with an 'N of 24 need attention' summary and expandable failing-row samples.</p>
+    <p><b>Why it matters:</b> Gym billing tenants accrue silent data corruption (over-consumed credits, commission exceeding sale value, orphaned records) that leaks money and erodes trust. MOVE lets an owner self-diagnose; Avantej has no runtime business-data integrity checks at all — only a platform-admin Stripe reconciler that tenants can't see.</p>
+    <details><summary>Build sketch</summary><p class="mono">Add packages/services/src/data-health.service.ts runIntegrityChecks(tenantDb, orgId) returning typed {id,label,category,status,failingCount,sampleRows[]}; router packages/api/src/routers/data-health.ts (run + summary) guarded by requirePermissionOrpc('reports:read'); implement each check as a discrete Drizzle/SQL assertion; UI route data-health.tsx reusing the SeverityBadge/EmptyState pattern from platform-admin-payments/DriftTab.tsx; optional nightly cron writing data_health_snapshots for instant load + trending, and a dashboard alert when failingCount&gt;0.</p></details>
+  </div>
+
+  <div class="card absent-card">
+    <h4>Danger Zone <span class="pill absent">Absent</span></h4>
+    <p><b>MOVE has:</b> A tenant-facing Danger Zone settings section: a Sandbox Reset that wipes packages + bookings while preserving branches/users/clients/coaches/categories/payees/promos/templates (gated by a typed 'CLEAR ALL PACKAGES' confirmation phrase), plus a per-record-type permanent hard-delete tool (Client/Package/Session/User/Branch/Service category/Package template) with search-then-select UX and a dedicated hard-delete audit log.</p>
+    <p><b>Why it matters:</b> Demo/sandbox tenants and mis-imports need a clean reset without a developer; MOVE gives operators a safe, audited self-serve purge. Avantej's only hard-delete is platform super-admin whole-tenant deletion — a tenant admin cannot selectively clear test data or purge a record type from within their own dashboard. Lower urgency than money-flow gaps but expected in a mature product.</p>
+    <details><summary>Build sketch</summary><p class="mono">Add router packages/api/src/routers/danger-zone/ (resetSandbox, hardDelete) admin-only + requirePermissionOrpc('danger_zone:manage'); packages/services/src/danger-zone.service.ts doing a transactional delete of package_instances + appointments while preserving the protected tables and validating the typed confirmation phrase server-side; hardDelete(recordType, ids[]) respecting FK/cascade order; a tenant hard_delete_audit table via idempotent migration + gen:migrations; UI settings/danger-zone.tsx with a typed-phrase modal + record-type search/multi-select red-confirm panel; add the 'danger_zone:manage' permission to seed-rbac.ts.</p></details>
+  </div>
+</section>
+
+<section>
+  <h2>Prioritized mimic backlog</h2>
+  <p class="note">Merged, deduped build items to reach MOVE-OS parity. Nearly every item has existing Avantej scaffolding to generalize (noted inline).</p>
+  <ol class="backlog"><li class="bl p0"><span class="prio p0">P0</span> Multi-currency across money surfaces: add a currency dimension (column or branch/country-derived) to commission_splits, payout_batches, and service_prices; make liabilitySummary/liabilityByStaff/listCommissionLedger GROUP BY currency and render one table + grand-total per currency; replace all hardcoded 'MYR'/'myr' literals (commission tabs, TreeRow, NodeDetailPanel) with the row/block currency. Multi-country tenants currently see co-mingled, wrong totals.</li>
+<li class="bl p0"><span class="prio p0">P0</span> Build the 10-report operational suite: new packages/api/src/routers/reports/ folder (salesRevenue, collections, arAging, expiringCredits, coachProductivity, refundsCancellations, salesMix, appointmentsDetailed, customerRedemptions, servicesOwed) over a shared { branchId?, from, to, taxBasis } input with accessibleNodeIds guards; Reports index page with report-picker, custom date-range picker, tax-basis toggle, virtualized tables and per-report CSV; generalize scheduled-reports to a reportType enum. Also add dual sales-allocation (lead_originator + sales_rep) columns to sales orders.</li>
+<li class="bl p0"><span class="prio p0">P0</span> Per-branch tax + company profile + numbering: extend branch_details with companyLegalName, registrationNumber, taxId, currency, invoicePrefix, receiptPrefix; scope tax rates per branch/country (branchTaxRateId) and have POS resolve the branch rate; compose invoice/receipt numbers as prefix + per-branch running sequence; render a company/tax header block in export-invoice-pdf.ts.</li>
+<li class="bl p0"><span class="prio p0">P0</span> Appointment lifecycle automation: month/today calendar views, multi-select bulk Mark-completed / Cancel-no-charge (new appointments/bulk.procedures.ts looping updateAppointment so credit+commission still fire), and an appointment-autocomplete cron that after the 24h window transitions sessions to completed, commits credit and pays the coach — while short-notice (&lt;24h) sessions stay Booked until they end.</li>
+<li class="bl p0"><span class="prio p0">P0</span> Month-based Payroll Periods lock: new payroll_periods tenant table (Open/Locked, lockedAt/By, lockKind, unlockReason) derived from commission_cycle_configs windows; router (list grid + lockNow/unlock-with-reason), payroll-period.service.ts writing lock/unlock audit events, an auto-lock cron at month-end + 2-day grace, and enforcement in commission write paths rejecting edits into a locked month.</li>
+<li class="bl p0"><span class="prio p0">P0</span> Self-service CSV import: settings/import route with entity picker + dropzone, papaparse, a data-import router (importPreview with per-row Zod errors + importCommit transactional insert) reusing the existing canonical DTOs/loaders and crosswalk idempotency, downloadable per-entity templates, an import_jobs history table, and unblocking of Payments/Packages/Payees/Service-categories/opening-balance loaders.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Non-member commission payees: commission_payees tenant table (name, isActive, roleType) + CRUD router, a nullable payeeId on commission_splits (exclusive with staffId), engine + payout aggregation grouping by payee, and a '+Add payee' section in the Track tab so commission can route to 'HQ Marketing' etc. Ship default tier ladder + 2-slot x 5% sales preset on provisioning.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Tenant-facing Data Health suite: data-health.service.ts runIntegrityChecks (~24 credit/installment/commission/allocation/orphan/unique-email assertions), a run+summary router, a Data Health page with 'N of 24 need attention' and expandable failing-row samples (reuse DriftTab patterns), optional nightly snapshot + dashboard alert.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Full CSV export catalogue: reusable CSV codec (generalize escapeCsvField/rowToCsvLine + chunked streaming), a schema-driven ~25-dataset manifest with FK preservation, per-dataset tenantProcedure exporters + an exportAll zip bundle delivered to R2, and a tenant Export page with per-dataset + 'Export all' buttons.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Email lifecycle control panel: org email_settings table (masterEnabled, logOnlyWhenDisabled, requireValidEmail, per-type flags for 7 lifecycle types), an email-settings router + Settings→Email lifecycle tab, implement the 5 missing lifecycle emails (welcome, expiry-reminder, low-credits, mid-package check-in, end-of-package statement) as services+crons, a send-gate honoring master+per-type+valid-email, and a tenant-facing recent-activity log reading control-panel email_logs.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Package Templates upgrade: multi-currency per-branch pricing (currency on service_prices + resolvePrice), flat deliveryPayPerSessionCents on services threaded into the payout path, serviceCode/externalOfferingId, a pricing tier/price-band, multi-branch availability (join table + checkbox multi-select), 182-day default validity, and a consolidated template grid (incl/excl-tax + Branches + sub-category).</li>
+<li class="bl p1"><span class="prio p1">P1</span> Users/RBAC parity: add Branch Manager / Manager-Coach / Viewer(read-only all-branches) system roles, a member_branch_assignments join table + multi-branch checkbox UI (auto-all for Admin+Viewer), a MOVE-style Users table with Name/Email/Role/Tier/Branches/Status, seed default coach tiers, and a per-row 'View as' with relaxed impersonation target constraints.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Dashboard finishing: add a Collected-vs-Outstanding KPI pair to getDashboardKpis/HeroSection, wire the existing ExpiringMembershipsWidget into DashboardPage (scoped by scopeNodeId), and add a sandbox/demo environment banner.</li>
+<li class="bl p1"><span class="prio p1">P1</span> Clients directory parity: add Assigned-coach + Country columns and a per-customer country attribute, per-row copy phone/email, staff-facing Stop-emails/Stop-offers toggles wiring existing notification-preferences, a 'Ready to offboard' status + real active/inactive filter, and a 'New booking' action on Customer-360.</li>
+<li class="bl p2"><span class="prio p2">P2</span> Branches columnar table view (Branch | Country | Tax | Usage[prefixes, client+package counts] | Status) alongside the tree, with per-branch active-client + package counts added to branch_stats_cache/hierarchy stats and a Status badge.</li>
+<li class="bl p2"><span class="prio p2">P2</span> Service Categories Mode: add a solo/semi_private mode to the category (+ defaultMaxAttendees on list output), render Name/Mode/Max-participants/Status columns, and a Mode select that auto-locks max to 1 for Solo.</li>
+<li class="bl p2"><span class="prio p2">P2</span> Danger Zone: sandbox reset (wipe packages+bookings, preserve core entities, 'CLEAR ALL PACKAGES' phrase gate) + per-record-type hard delete with search/multi-select, a hard_delete_audit table, and a 'danger_zone:manage' permission.</li>
+<li class="bl p2"><span class="prio p2">P2</span> Account + What's New: a product_updates changelog table + router + 'What's New' page with unread badge, wire the inert Help item to real handbook links, show role+scope in the account dropdown, and repoint 'Personal Details' to a genuine self-profile route.</li></ol>
+</section>
+
+<section>
+  <h2>Partial modules — sub-feature gaps (14)</h2>
+  <p class="note">Areas Avantej already has, missing specific high-leverage sub-features. Quick wins reuse code that already exists.</p>
+  
+  <div class="card">
+    <h4>Sessions / Appointments <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Month (and explicit Today) calendar-grid view — only Day/Week/List exist</li><li>Multi-select bulk toolbar (bulk Mark completed / bulk Cancel no-charge)</li><li>Auto-complete cron that transitions sessions to completed after the 24h cancel window, commits credit, and auto-pays the coach</li><li>Differentiated short-notice (&lt;24h) 'stays Booked until finish' auto-settlement path</li><li>Recurring 'session N of M' counter with prev/next occurrence navigation</li><li>Explicit combined filter bar (coach/branch/status/date-range) on the Schedule tab</li><li>'Solo' vs 'Semi-private' service-type label and per-participant credit/'no credit consumed' badge</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Add 'month' + 'today' to ViewMode in appointment-list.tsx reusing existing CalendarCell/CalendarDetailModal (month nav already present)</li><li>Surface an explicit filter bar mapping to already-supported list.procedures.ts inputs (trainerId, branchId, status, startFrom/startTo)</li><li>Render Solo/Semi-private label + participant count in the Service column over the existing private|semi-private enum</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Commission (ledger) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Per-currency grouping of team-summary and grand totals (currently hardcoded MYR, sums across countries)</li><li>Dedicated Delivery and Sales-allocation money columns (currently collapsed into a dynamic By-Role badge)</li><li>Explicit Session count + Per-session value columns in the detailed ledger</li><li>Enforced closed-period immutability with corrections auto-routed to the current open period</li><li>Date-range quick-link presets (This month / Last month / This quarter / YTD)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Add named date-range quick-link chips driving the existing from/to state in liability-tab and all-tab</li><li>Derive dedicated Delivery vs Sales-allocation columns from the existing byRoleType map (trainer-&gt;Delivery, sales/marketing/referrer-&gt;Sales) while keeping the By-Role tooltip</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Reports suite (10 reports) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>All 10 row-level operational reports (Sales/Revenue, Collections, AR-aging, Expiring Credits, Coach Productivity, Refunds &amp; Cancellations, Sales Mix, Appointments Detailed, Customer Redemptions, Services Owed)</li><li>Dual sales-allocation (Lead Originator vs Sales Rep) concept on sales orders</li><li>AR days-overdue bucketing (0-30/31-60/61-90/90+)</li><li>Tax-basis (pre-tax vs tax-inclusive) toggle</li><li>Custom/arbitrary date-range picker (only fixed 7D/30D/90D/YTD windows)</li><li>Per-report tabular CSV export (export is over the aggregate KPI dashboard today)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Generalize the existing buildCsv (export-csv.ts) to arbitrary column sets so each new report tab gets CSV export for free</li><li>Extend the existing getStaffPerformance into a full Coach Productivity report (add tier, distinct clients, no-show/late counts, credits earned, no-show rate%)</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Branches (hierarchy + tax profile) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Per-branch company/tax profile (legal name, SSM/UEN registration, tax id) printed on invoices</li><li>Per-branch/per-country tax rate scoping (tax is org-global with a single isDefault)</li><li>Per-branch invoice-number + receipt-number prefixes</li><li>Columnar Branches table (Branch | Country | Tax | Usage | Status) alongside the tree</li><li>Per-branch active-client + package counts and an active/inactive Status column</li><li>Multi-currency display (revenue hardcoded MYR in TreeRow/NodeDetailPanel)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Surface branch Status (active vs archivedAt already in schema) as a badge in the detail panel</li><li>Replace hardcoded 'MYR' in TreeRow.tsx / NodeDetailPanel.tsx with a branch/country currency once the column exists</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Payroll Periods <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Month-keyed period-lock entity with Open/Locked state</li><li>Payroll Periods grid UI (Month | State | Action)</li><li>Auto-lock scheduler at month-end + 2-day grace</li><li>'Lock now' early-close action</li><li>'Unlock (with reason)' reopen flow with mandatory reason</li><li>Lock enforcement gate blocking back-dated edits into a settled month</li><li>Dedicated lock/unlock audit history</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Derive period boundaries from the existing commission_cycle_configs resolver rather than hardcoding calendar months</li><li>Reuse the migrate-all-tenants pattern (like installment-sweep) for the auto-lock cron wiring</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Package Templates <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Multi-currency per-branch pricing (service_prices is single-currency)</li><li>Flat per-session delivery pay field (only percentage defaultCommissionBps exists)</li><li>Service code / external offering id for catalog sync</li><li>Pricing tier/price-band selector</li><li>Multi-branch availability multi-select (single nullable branchId today)</li><li>182-day default validity</li><li>Consolidated template grid with incl/excl-tax price + Branches + sub-category columns</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Default services.expiryDays to 182 when expirable is enabled</li><li>Add serviceCode column + field/column to services-page.tsx for catalog sync</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Commission Settings <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Non-coach/non-member named payees (e.g. 'HQ Marketing') — every split keys to members.userId</li><li>'+Add payee' registry table + CRUD</li><li>Seeded default tier ladder (Junior 25 / Senior 27.5 / Lead 30)</li><li>Shipped default sales-allocation preset (2 slots x 5%)</li><li>A distinct 'Sales allocation' settings panel separate from delivery coach-splitting</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Seed a Junior/Senior/Lead tier ladder (2500/2750/3000 bp) and a 2-slot x 5% sales track on tenant provisioning</li><li>Add a running-total badge Sales-allocation panel over the existing commission_coach_slots model</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Email Settings (lifecycle) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Org-level master email on/off switch (only per-user emailEnabled exists)</li><li>Log-only mode (record 'would-have-sent' when disabled)</li><li>Org-admin per-type transactional enable/disable toggles</li><li>5 of 7 lifecycle emails: Welcome, Expiry reminder, Low-credits, Mid-package check-in, End-of-package statement (dispatcher only sends announcements)</li><li>Tenant-facing recent delivery-activity log (email_logs is control-panel-only)</li><li>Configurable valid-email gate</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Expose the existing control-panel email_logs to tenants via an emailSettings.recentActivity query filtered by organizationId (last 30 rows)</li><li>Extend NOTIFICATION_TYPE_META + the routing card in settings/email.tsx to cover all 7 lifecycle types</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Export (CSV) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Tenant-facing self-serve bulk export UI (full dump is super-admin-only, tied to deletion)</li><li>CSV format for the full dump (runTenantExport emits one JSON blob)</li><li>'Export all to folder' zip/multi-file bundle</li><li>~20 missing per-dataset CSV exporters (branches, members, clients, categories, promos, invoices, payments, credit ledger, commission entries, etc.)</li><li>Schema-driven FK-preservation manifest</li><li>R2 delivery of large exports (runTenantExport TODO still returns a data: URL)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Generalize the existing escapeCsvField/rowToCsvLine + chunked-streaming logic from cancelled-sales.service.ts into a reusable CSV codec</li><li>Reuse runTenantExport's generic table enumeration to emit one CSV per table instead of a JSON blob</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Service Categories <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Solo/Semi-private Mode field on the category (mode lives only on services.type)</li><li>Mode + Max-participants columns in the category grid</li><li>Mode-&gt;max-participants coupling (Solo =&gt; max 1)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Surface the already-stored service_category_config.defaultMaxAttendees as a grid column</li><li>Add a Mode select to service-category-form.tsx that auto-locks maxAttendees to 1 when Solo</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Clients (Customers) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Assigned-coach and Country columns in the directory list</li><li>Per-customer country attribute</li><li>'Ready to offboard' lifecycle status + a real active/inactive filter (current toggle is show-deleted)</li><li>Per-row copy phone/email buttons</li><li>Staff-facing Stop-emails / Stop-offers toggles wiring the existing notification-preferences flags</li><li>Dedicated 'New booking' action from the Customer-360 header</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Reuse copyable-cell.tsx per-row in the v2 directory list for phone + email</li><li>Surface the stored primaryStaffMemberId (assigned coach) as a list column and Profile-block field</li><li>Wire the existing emailEnabled/promotionalEmails flags into customer-profile-panel toggles</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Users / RBAC <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Named roles Branch Manager / Manager-Coach / Viewer (read-only all-branches)</li><li>Explicit multi-branch assignment (single hierarchyScopeId today, no member&lt;-&gt;branch join table)</li><li>MOVE-style Users table with Name/Email/Role/Tier/Branches/Status columns</li><li>Tier shown inline in the users table</li><li>Manager-Coach hybrid role representation</li><li>General 'View as' from each user row (impersonation currently constrained to staff targets)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Add a table view surfacing the already-selected trainerTierId as a Tier column</li><li>Seed default coach tiers Junior/Senior/Lead for new tenants</li><li>Add named viewer/branch_manager/manager_coach system roles to seed-rbac.ts</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Dashboard / KPIs <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>'Outstanding' KPI beside Collected (outstanding balances exist in services but not aggregated into getDashboardKpis)</li><li>Approaching-expiry card on the dashboard (widget exists but is only referenced in a test mock)</li><li>Sandbox/environment banner for non-production/demo tenants</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Wire the existing ExpiringMembershipsWidget into DashboardPage.tsx passing branchId: scopeNodeId</li><li>Extend getDashboardKpis to aggregate the existing outstandingCents SQL and render a Collected-vs-Outstanding pair</li></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Account + What's New (changelog) <span class="pill partial">Partial</span></h4>
+    <div class="two">
+      <div><b>Missing sub-features</b><ul><li>Product changelog / 'What's New' feed (no route, router, or table)</li><li>Unread-updates badge on the nav</li><li>Real handbook/help links (Help dropdown is inert)</li><li>Role + hierarchy scope shown in the account dropdown</li><li>A genuine self-profile route ('Personal Details' points at /customers)</li></ul></div>
+      <div><b>Quick wins</b><ul><li>Repoint 'Personal Details' to a real self-profile route and wire the inert Help item to a docs URL</li><li>Enrich the account dropdown to show role + accessible branch names from useUserContext</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Appendix — MOVE OS site map (30 routes crawled)</h2>
+  <div class="scroll"><table class="matrix small">
+    <thead><tr><th>Group</th><th>Item</th><th>Path</th></tr></thead>
+    <tbody><tr><td>Operating System</td><td>Dashboard</td><td class="mono">/dashboard</td></tr>
+<tr><td>Operating System</td><td>Clients</td><td class="mono">/clients</td></tr>
+<tr><td>Operating System</td><td>Sessions</td><td class="mono">/sessions</td></tr>
+<tr><td>Operating System</td><td>Commission</td><td class="mono">/commission</td></tr>
+<tr><td>Operating System</td><td>Reports (hub)</td><td class="mono">/reports</td></tr>
+<tr><td>Operating System</td><td>· Sales (Revenue)</td><td class="mono">/reports/sales</td></tr>
+<tr><td>Operating System</td><td>· Collections</td><td class="mono">/reports/collections</td></tr>
+<tr><td>Operating System</td><td>· Outstanding / AR Aging</td><td class="mono">/reports/ar-aging</td></tr>
+<tr><td>Operating System</td><td>· Expiring Credits</td><td class="mono">/reports/expiring-credits</td></tr>
+<tr><td>Operating System</td><td>· Coach Productivity</td><td class="mono">/reports/coach-productivity</td></tr>
+<tr><td>Operating System</td><td>· Refunds &amp; Cancellations</td><td class="mono">/reports/refunds-cancellations</td></tr>
+<tr><td>Operating System</td><td>· Sales Mix</td><td class="mono">/reports/sales-mix</td></tr>
+<tr><td>Operating System</td><td>· Appointments Detailed</td><td class="mono">/reports/appointments-detailed</td></tr>
+<tr><td>Operating System</td><td>· Customer Redemptions</td><td class="mono">/reports/customer-redemptions</td></tr>
+<tr><td>Operating System</td><td>· Services Owed to Customers</td><td class="mono">/reports/services-owed</td></tr>
+<tr><td>Operating System</td><td>What's New</td><td class="mono">/changelog</td></tr>
+<tr><td>Admin</td><td>Branches</td><td class="mono">/settings/branches</td></tr>
+<tr><td>Admin</td><td>Users</td><td class="mono">/settings/users</td></tr>
+<tr><td>Admin</td><td>Service Categories</td><td class="mono">/service-categories</td></tr>
+<tr><td>Admin</td><td>Promo Codes</td><td class="mono">/settings/promo-codes</td></tr>
+<tr><td>Admin</td><td>Package Templates</td><td class="mono">/package-templates</td></tr>
+<tr><td>Admin</td><td>Commission Settings</td><td class="mono">/settings/commission</td></tr>
+<tr><td>Admin</td><td>Payroll Periods</td><td class="mono">/settings/periods</td></tr>
+<tr><td>Admin</td><td>Email Settings</td><td class="mono">/settings/email</td></tr>
+<tr><td>Admin</td><td>Import (CSV)</td><td class="mono">/import</td></tr>
+<tr><td>Admin</td><td>Export (CSV)</td><td class="mono">/export</td></tr>
+<tr><td>Admin</td><td>Data Health</td><td class="mono">/data-health</td></tr>
+<tr><td>Admin</td><td>Danger Zone</td><td class="mono">/settings/danger-zone</td></tr>
+<tr><td>User Account</td><td>Account</td><td class="mono">/account</td></tr></tbody>
+  </table></div>
+</section>
+
+<footer>Generated 2026-07-03 · crawl via PageAgent MCP · repo audit via 18-agent workflow. Read-only; MOVE sandbox left untouched.</footer>
+</div></body></html>
