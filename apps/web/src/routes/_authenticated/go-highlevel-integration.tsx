@@ -94,6 +94,15 @@ function GoHighLevelIntegrationPage() {
 		enabled: !!organizationId,
 	});
 
+	// Approved rows (last 30 days) — the durable onboarding lifecycle
+	// (Approved → Link sent → Registered). Server-backed so it survives reload.
+	const { data: approvedContacts = [] } = useQuery({
+		...orpc.ghl.listApprovedContacts.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
+		enabled: !!organizationId,
+	});
+
 	const setGateMutation = useApiMutation({
 		mutationFn: async (vars: { enabled: boolean }) => {
 			if (!organizationId) throw new Error("No organization");
@@ -116,7 +125,25 @@ function GoHighLevelIntegrationPage() {
 			});
 		},
 		successMessage: "Contact approved — member created",
-		invalidate: [orpc.ghl.listPendingContacts.key()],
+		// The approved row moves from the pending list into the approved list.
+		invalidate: [
+			orpc.ghl.listPendingContacts.key(),
+			orpc.ghl.listApprovedContacts.key(),
+		],
+	});
+
+	// Onboarding hand-off — dispatch the sign-in link so the approved contact
+	// can set a password and complete registration. Server stamps sent_at.
+	const sendOnboardingLinkMutation = useApiMutation({
+		mutationFn: async (vars: { pendingId: string }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.sendOnboardingLink({
+				organizationId,
+				pendingId: vars.pendingId,
+			});
+		},
+		successMessage: "Onboarding link sent",
+		invalidate: [orpc.ghl.listApprovedContacts.key()],
 	});
 
 	const rejectContactMutation = useApiMutation({
@@ -377,7 +404,7 @@ function GoHighLevelIntegrationPage() {
 						manager approves it — only then is the member created in Avantej.
 						When OFF, contacts sync instantly.
 					</p>
-					{pendingContacts.length === 0 ? (
+					{pendingContacts.length === 0 && approvedContacts.length === 0 ? (
 						<p className="text-sm text-muted-foreground py-4">
 							No contacts awaiting approval.
 						</p>
@@ -394,6 +421,107 @@ function GoHighLevelIntegrationPage() {
 									</tr>
 								</thead>
 								<tbody>
+									{/* Approved rows — durable onboarding lifecycle */}
+									{approvedContacts.map((c) => {
+										const branchName =
+											(hierarchyData?.nodes ?? []).find(
+												(n: HierarchyNode) => n.id === c.resolvedBranchNodeId,
+											)?.name ?? "—";
+										const sentLabel = c.onboardingLinkSentAt
+											? new Date(c.onboardingLinkSentAt).toLocaleTimeString(
+													[],
+													{ hour: "numeric", minute: "2-digit" },
+												)
+											: null;
+										return (
+											<tr
+												key={c.id}
+												className="border-b last:border-0"
+												data-testid="ghl-approved-row"
+											>
+												<td className="py-3 pr-4">
+													<span className="font-medium">
+														{c.proposedName ?? "—"}
+													</span>
+													<div className="mt-1">
+														{c.registered ? (
+															<Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+																✓ Registered
+															</Badge>
+														) : (
+															<Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+																✓ Approved · member created
+															</Badge>
+														)}
+													</div>
+												</td>
+												<td className="py-3 pr-4 text-muted-foreground">
+													{c.proposedEmail ?? c.proposedPhone ?? "—"}
+												</td>
+												<td className="py-3 pr-4">{branchName}</td>
+												<td className="py-3 pr-4 text-muted-foreground">—</td>
+												<td className="py-3">
+													{c.registered ? (
+														<span className="text-sm text-muted-foreground">
+															Onboarding complete
+														</span>
+													) : sentLabel ? (
+														<div className="flex items-center gap-2 text-sm">
+															<span className="text-emerald-700">
+																Sent {sentLabel} ✓
+															</span>
+															<Button
+																size="sm"
+																variant="ghost"
+																data-testid="ghl-resend-link-btn"
+																onClick={() =>
+																	sendOnboardingLinkMutation.mutate({
+																		pendingId: c.id,
+																	})
+																}
+																disabled={
+																	sendOnboardingLinkMutation.isPending ||
+																	c.emailIsPlaceholder ||
+																	!c.hasLinkedUser
+																}
+															>
+																Resend
+															</Button>
+														</div>
+													) : (
+														<div className="flex flex-col items-start gap-1">
+															<Button
+																size="sm"
+																data-testid="ghl-send-onboarding-link-btn"
+																title={
+																	c.emailIsPlaceholder
+																		? "No real email on this contact — add one from Customers first"
+																		: "Email a sign-in link so they can set a password and complete registration"
+																}
+																onClick={() =>
+																	sendOnboardingLinkMutation.mutate({
+																		pendingId: c.id,
+																	})
+																}
+																disabled={
+																	c.emailIsPlaceholder ||
+																	!c.hasLinkedUser ||
+																	sendOnboardingLinkMutation.isPending
+																}
+															>
+																✉ Send onboarding link
+															</Button>
+															{c.emailIsPlaceholder && (
+																<span className="text-xs text-muted-foreground">
+																	No real email — add one in Customers
+																</span>
+															)}
+														</div>
+													)}
+												</td>
+											</tr>
+										);
+									})}
 									{pendingContacts.map((p) => {
 										const branchName =
 											(hierarchyData?.nodes ?? []).find(

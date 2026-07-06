@@ -1,0 +1,28 @@
+{
+	"__comment": "Module→folder aliases + justified deferrals for ledger.mjs sync. product-categories rows are covered by specs in the categories/ folder.",
+	"aliases": {
+		"product-categories": ["categories"]
+	},
+	"defer": [
+		{
+			"module": "onboarding",
+			"match": "sendOnboardingLink \\(dispatch",
+			"reason": "The send happy-path (dispatch → stamp sent_at → registered transition) needs a pending-GHL-contact fixture (only an inbound webhook creates one) AND dispatches a real magic-link email to the contact's address, so it isn't run in CI. Wiring, RBAC, the clean-404 error path, and the listApprovedContacts lifecycle shape ARE covered by ghl-onboarding-handoff.rule.spec.ts; the dispatch itself mirrors the tested resendMagicLink path. Cover fully when a webhook-simulation + email-capture fixture exists."
+		},
+		{
+			"module": "households",
+			"match": "primaryContactProfileId",
+			"reason": "The households router has no delete procedure and the tenant DB connectionString is encrypted (no direct SQL) — a spec would strand an E2E household + customer-profile row in the shared dev tenant, violating the no-orphans discipline. Needs a households/delete procedure or a disposable tenant fixture. (Corroborated by the SKIP note in customers/customer-profiles.lifecycle.spec.ts.)"
+		},
+		{
+			"module": "saas",
+			"match": "suspended|cancelled",
+			"reason": "Requires flipping the live dev org's paymentStatus to suspended/cancelled — a mid-run crash would lock the shared tenant for every concurrent session. Needs a throwaway org fixture (Neon branch) before this is safe to automate."
+		},
+		{
+			"module": "saas",
+			"match": "past_due|PAST_DUE_READONLY",
+			"reason": "Same as suspended/cancelled: mutating the shared dev org's paymentStatus mid-run risks read-only-locking the tenant other sessions are using. Needs a throwaway org fixture."
+		}
+	]
+}

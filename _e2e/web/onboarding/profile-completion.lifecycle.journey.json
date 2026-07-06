@@ -1,0 +1,19 @@
+{
+	"onboarding/profile-completion.lifecycle.spec.ts::GHL-shaped member completes their profile through the Confirm wizard": [
+		"Arrange a GHL-approval-shaped fixture: fresh test-prefixed user (email-verified via dev DB) + a client membership created by the admin via members/create — client member, user role null, no profile.",
+		"As that user (API), assert registration/profileStatus reports needsProfileCompletion=true and resolves the branch name.",
+		"Log in through the real /login UI, then open /register with NO invite token.",
+		"Assert profile-completion mode: no 'Registration invite required' notice, and the step rail shows Personal → Emergency → Confirm.",
+		"Step 1: email prefilled from the session; fill phone, IC, address, city/state/country/postal, DOB; Continue.",
+		"Step 2: fill emergency contact; Continue.",
+		"Step 3: assert the read-only Confirm — fixed branch card shows the member's real branch, no branch selector rendered, and the button reads 'Complete registration'; submit.",
+		"Assert navigation to /dashboard; API-boundary: session role flips to 'user' and phone persisted dial-code-prefixed.",
+		"Assert a second completeProfile call is rejected 409 CONFLICT (no double completion).",
+		"Teardown: members/remove (both DBs) + SQL delete of session/account/user rows."
+	],
+	"onboarding/profile-completion.lifecycle.spec.ts::completeProfile is FORBIDDEN for staff/admin members and non-members": [
+		"As the admin (a member with role 'admin', user role null), call registration/completeProfile — assert 403 FORBIDDEN ('only for client members'), protecting staff from profile overwrites.",
+		"As a fresh user with no membership at all, call completeProfile — assert 403 FORBIDDEN ('No membership found').",
+		"Teardown: SQL delete of the fixture user's auth rows."
+	]
+}

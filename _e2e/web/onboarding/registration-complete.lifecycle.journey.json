@@ -1,0 +1,18 @@
+{
+	"onboarding/registration-complete.lifecycle.spec.ts::fresh user + valid invite → wizard → member created (API-verified), then torn down": [
+		"As admin (API), create a real branch self-signup invite for the tenant's Malaysia branch node (revoked in teardown).",
+		"Create a FRESH test-prefixed user via the sign-up API and mark it email-verified directly in the dev control-panel DB (Better-Auth blocks unverified sign-ins).",
+		"Log in through the real /login UI with ?registrationToken=<invite> — assert login forwards to /register?token=<invite>.",
+		"Step 1: assert email prefilled from the session; fill phone, IC, address, city/state/country/postal, date of birth; Continue.",
+		"Step 2: fill emergency contact name, relationship, phone; Continue.",
+		"Step 3: pick the Malaysia country card, open the branch select, choose the tenant's branch; Submit.",
+		"Assert navigation to /dashboard.",
+		"API-boundary assertions: get-session shows role='user' and phone persisted as +60123456789; auth/userContext shows a client-role membership in the org; members/list (as admin) shows the tenant member row.",
+		"Teardown: members/remove deletes the member from both DBs; SQL deletes the session/account/user auth rows; the invite is revoked."
+	],
+	"onboarding/registration-complete.lifecycle.spec.ts::registration.complete as an existing member is rejected CONFLICT (no double-registration)": [
+		"As admin (already a tenant member), create a fresh invite (revoked in teardown).",
+		"POST registration/complete with a fully-formed payload and the REAL invite token.",
+		"Assert 409 CONFLICT ('already a member') — the invite passes redemption but the member check blocks double-registration, and the admin's profile is not mutated."
+	]
+}

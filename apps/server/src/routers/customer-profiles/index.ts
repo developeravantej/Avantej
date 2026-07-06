@@ -15,6 +15,7 @@ import { profileLifecycleProcedures } from "./profile-lifecycle.procedures";
 import { profileIdentityProcedures } from "./profile-identity.procedures";
 import { claimDispatchProcedures } from "./claim-dispatch.procedures";
 import { claimUnclaimedProcedures } from "./claim-unclaimed.procedures";
+import { createUnclaimedProcedures } from "./create-unclaimed.procedures";
 import { ghlProcedures } from "./ghl.procedures";
 
 export const serverCustomerProfilesRouter = {
@@ -23,5 +24,6 @@ export const serverCustomerProfilesRouter = {
 	...profileIdentityProcedures,
 	...claimDispatchProcedures,
 	...claimUnclaimedProcedures,
+	...createUnclaimedProcedures,
 	...ghlProcedures,
 };
