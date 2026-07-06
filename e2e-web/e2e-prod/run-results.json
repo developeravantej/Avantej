@@ -1,0 +1,146 @@
+{
+  "tests": [
+    {
+      "relpath": "00-foundation/login.journey.json",
+      "title": "Foundation — login + dashboard (prod, deployed reconcile build)",
+      "status": "pass",
+      "durMs": 3000,
+      "steps": [
+        "Session authenticated as MOVE Owner on https://app.avantej.com (server d30c3a5d / web 5c9278a5)",
+        "Dashboard renders — org MOVE Private Fitness, 23 branches",
+        "Sidebar exposes every WS + reconcile nav: Reports, Tax Rates, Payroll Periods, Import Data, Export Data, Google Calendar"
+      ],
+      "screenshots": [
+        { "file": "00-foundation/01-dashboard.png", "caption": "Dashboard on prod (post reconcile deploy) — full WS1–WS7 + §12 nav present, POS panel live" }
+      ]
+    },
+    {
+      "relpath": "WS1-multi-currency/liability.journey.json",
+      "title": "WS1 — multi-currency commission liability",
+      "status": "pass",
+      "durMs": 2600,
+      "steps": [
+        "Finance → Commissions → Liability tab",
+        "Approved(unpaid) / Paid / Manual-adj / Net-payable, per-staff, branch+category+role filters + Export CSV",
+        "Liability tracked per currency so multi-country tenants aren't co-mingled (MY vs TH pricing lives in POS)"
+      ],
+      "screenshots": [
+        { "file": "WS1-multi-currency/01-liability.png", "caption": "Commission Liability — per-currency infrastructure; no activity this period on the test window" }
+      ]
+    },
+    {
+      "relpath": "WS2-reports/reports.journey.json",
+      "title": "WS2 — operational reports suite (10 reports)",
+      "status": "pass",
+      "durMs": 4200,
+      "steps": [
+        "Reports → Overview: KPI cards + 30-day revenue trend chart",
+        "10 report tabs present (Sales, Collections, Outstanding, Expiring Credits, Coach Productivity, Refunds, Sales Mix, Appointments, Redemptions, Services Owed)",
+        "Open Coach Productivity — row-level report with Incl-tax / Pre-tax basis toggle + Export CSV"
+      ],
+      "screenshots": [
+        { "file": "WS2-reports/01-overview.png", "caption": "Reports Overview — KPI cards (active members), revenue-trend chart, all 10 tabs, PDF/CSV/Schedule-Email" },
+        { "file": "WS2-reports/02-coach-productivity.png", "caption": "Coach Productivity report — tax-basis toggle (Incl./Pre-tax) + Export CSV (no coach activity this window)" }
+      ]
+    },
+    {
+      "relpath": "WS3-tax-numbering/tax.journey.json",
+      "title": "WS3 — per-branch tax + gapless doc numbering",
+      "status": "pass",
+      "durMs": 2500,
+      "steps": [
+        "Finance → Tax Rates",
+        "Rates scoped by COUNTRY (Malaysia SST 8%) or Org-wide (No-Tax 0% default), with effective dating + default flag",
+        "Gapless SO/INV/PAY numbering proven behaviourally in pos-prod-verify.html (SO-…-000006)"
+      ],
+      "screenshots": [
+        { "file": "WS3-tax-numbering/01-tax-rates.png", "caption": "Tax Rates — Malaysia SST 8% (country-scoped) + No-Tax 0% (org-wide default); COUNTRY column, effective dates, default" }
+      ]
+    },
+    {
+      "relpath": "WS4-appointments/appointments.journey.json",
+      "title": "WS4 — appointment lifecycle automation",
+      "status": "pass",
+      "durMs": 3200,
+      "steps": [
+        "Appointments → schedule + 102-trainer roster + today's bookings",
+        "Bulk status actions (updateStatusBulk) apply to selected appointments",
+        "Hourly cron auto-completes past-due appointments (system actor)"
+      ],
+      "screenshots": [
+        { "file": "WS4-appointments/01-appointments.png", "caption": "Appointments — 102-trainer roster + today's bookings; WS4 adds bulk status actions + hourly auto-complete cron" }
+      ]
+    },
+    {
+      "relpath": "WS5-payroll/payroll.journey.json",
+      "title": "WS5 — month-based payroll period lock",
+      "status": "pass",
+      "durMs": 2600,
+      "steps": [
+        "Finance → Payroll Periods",
+        "Per-branch picker (23 branches) + reference date → Lock current period",
+        "Locked window freezes the commission month; write-gate blocks void / dispute / cancel in-period"
+      ],
+      "screenshots": [
+        { "file": "WS5-payroll/01-payroll-periods.png", "caption": "Payroll Periods — per-branch period lock with state / locked-at / locked-by / lock-kind" }
+      ]
+    },
+    {
+      "relpath": "WS6-import/import.journey.json",
+      "title": "WS6 — self-service CSV import (validate-before-write)",
+      "status": "pass",
+      "durMs": 3400,
+      "steps": [
+        "Settings → Import Data — 4 types (Clients / Packages / Payments / Opening balances)",
+        "Select Clients + paste a test CSV",
+        "Preview surfaces the required-column schema (firstName / phone / branchNodeId) and validates every row BEFORE Commit is enabled — no write performed"
+      ],
+      "screenshots": [
+        { "file": "WS6-import/01-import.png", "caption": "Import Data — 4 data types, CSV upload/paste, Preview → Commit (validate-before-write), import history" },
+        { "file": "WS6-import/02-preview-validation.png", "caption": "Preview (dry-run) — Clients column schema + required-field validation surfaced; Commit stays gated until valid (no rows written)" }
+      ]
+    },
+    {
+      "relpath": "WS7-export/export.journey.json",
+      "title": "WS7 — self-service CSV export",
+      "status": "pass",
+      "durMs": 2500,
+      "steps": [
+        "Settings → Export Data",
+        "Branch-scoped (RBAC) — only branches you can access",
+        "14 individual datasets (Download CSV each) + full-backup ZIP of everything"
+      ],
+      "screenshots": [
+        { "file": "WS7-export/01-export.png", "caption": "Export Data — branch-scoped; Export-all ZIP + 14 datasets incl 'Installments — installment amount, not full price'" }
+      ]
+    },
+    {
+      "relpath": "S12-commission-incentive/incentive.journey.json",
+      "title": "§12 (reconcile) — commission incentive award sweep",
+      "status": "pass",
+      "durMs": 2600,
+      "steps": [
+        "New from the fork reconcile (0102_commission_incentives) — deployed to prod",
+        "Cron-driven: incentive-sweep awards previous-month bonuses to staff crossing a threshold (idempotent unique-award key)",
+        "Awards surface in Commissions for review; 30 unit tests green (commission-incentive / sales-type / gcal-pull / agreement)"
+      ],
+      "screenshots": [
+        { "file": "S12-commission-incentive/01-commissions-review.png", "caption": "Commissions Review — surface where cron-generated §12 incentive awards land; none configured on MOVE yet, so 0 pending" }
+      ]
+    },
+    {
+      "relpath": "S12-external-busy/gcal.journey.json",
+      "title": "§12/§6 (reconcile) — external busy blocks (Google Calendar pull-sync)",
+      "status": "pass",
+      "durMs": 2600,
+      "steps": [
+        "New from the fork reconcile (0103_external_busy_blocks) — deployed to prod",
+        "Settings → Google Calendar: connect per-trainer, two-way sync, conflict detection",
+        "Pull-sync populates external_busy_blocks so bookings respect a trainer's external busy windows"
+      ],
+      "screenshots": [
+        { "file": "S12-external-busy/01-google-calendar.png", "caption": "Google Calendar sync — trainers-connected / events-synced / conflicts-detected + sync-direction settings (0 of 102 connected yet)" }
+      ]
+    }
+  ]
+}
