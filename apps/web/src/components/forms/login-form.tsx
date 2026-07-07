@@ -23,6 +23,11 @@ export default function LoginForm({
 	const searchParams = useSearch({ strict: false });
 	const invitationToken = searchParams.invitationToken as string | undefined;
 	const orgId = searchParams.orgId as string | undefined;
+	// Branch self-signup invite token forwarded from the QR onboarding page —
+	// after login the user must complete member registration with this token.
+	const registrationToken = searchParams.registrationToken as
+		| string
+		| undefined;
 	const signupSearch =
 		invitationToken && orgId ? { invitationToken, orgId } : {};
 
@@ -47,6 +52,11 @@ export default function LoginForm({
 						to: "/accept-invitation",
 						search: { token: invitationToken, orgId },
 					});
+				} else if (registrationToken) {
+					navigate({
+						to: "/register",
+						search: { token: registrationToken },
+					});
 				} else {
 					navigate({ to: "/dashboard" });
 				}
@@ -62,12 +72,24 @@ export default function LoginForm({
 		},
 	});
 
-	// Redirect if already logged in - use useEffect to avoid setState during render
+	// Redirect if already logged in - use useEffect to avoid setState during render.
+	// Precedence MUST match the onSubmit path above (invitation → registration →
+	// dashboard) so the destination doesn't depend on whether the user was already
+	// signed in.
 	useEffect(() => {
 		if (!isLoading && session?.user) {
-			navigate({ to: "/dashboard" });
+			if (invitationToken && orgId) {
+				navigate({
+					to: "/accept-invitation",
+					search: { token: invitationToken, orgId },
+				});
+			} else if (registrationToken) {
+				navigate({ to: "/register", search: { token: registrationToken } });
+			} else {
+				navigate({ to: "/dashboard" });
+			}
 		}
-	}, [session, isLoading, navigate]);
+	}, [session, isLoading, navigate, registrationToken, invitationToken, orgId]);
 
 	// Early return AFTER all hooks have been called
 	if (!isLoading && session?.user) {

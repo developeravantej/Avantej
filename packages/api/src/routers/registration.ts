@@ -2,6 +2,7 @@ import { organizationBranches } from "@avantej-core/db/schema/control-panel/orga
 import { user } from "@avantej-core/db/schema/auth";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
@@ -216,6 +217,148 @@ export const registrationRouter = {
 			return {
 				success: true,
 				message: "Registration completed successfully",
+				organizationId: input.organizationId,
+			};
+		}),
+
+	/**
+	 * Registration status for the calling user within one org. Drives the
+	 * /register form's mode switch: a client member with a null user role
+	 * (e.g. a GHL-approved contact) completes their PROFILE instead of
+	 * redeeming an invite. Also surfaces the member's branch name for the
+	 * read-only Confirm step.
+	 */
+	profileStatus: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available",
+				});
+			}
+			const userId = context.session.user.id;
+
+			const member = await context.tenantDb.query.members.findFirst({
+				where: eq(members.userId, userId),
+			});
+			if (!member) {
+				return {
+					isMember: false as const,
+					memberRole: null,
+					branchName: null,
+					needsProfileCompletion: false,
+				};
+			}
+
+			const [node] = await context.tenantDb
+				.select({ name: hierarchyNodes.name })
+				.from(hierarchyNodes)
+				.where(eq(hierarchyNodes.id, member.hierarchyScopeId))
+				.limit(1);
+
+			// user.role is the registration-complete marker (set to "user" by
+			// complete/completeProfile). Read it fresh — the session copy can lag.
+			const controlPanelDb = getControlPanelDb(context);
+			const userRow = controlPanelDb
+				? await controlPanelDb.query.user.findFirst({
+						where: eq(user.id, userId),
+					})
+				: null;
+			const roleSet = !!(userRow?.role ?? context.session.user.role);
+
+			return {
+				isMember: true as const,
+				memberRole: member.role,
+				branchName: node?.name ?? null,
+				needsProfileCompletion: member.role === "client" && !roleSet,
+			};
+		}),
+
+	/**
+	 * Complete the PROFILE of an already-materialized member (GHL approval
+	 * path). The manager's approval created the membership, so no invite
+	 * token is required — instead the gates are:
+	 *   - caller must already be a member of this org (FORBIDDEN otherwise)
+	 *   - member role must be "client" (staff/admin members never come
+	 *     through self-registration — FORBIDDEN)
+	 *   - user.role must still be null (CONFLICT once registration is done)
+	 * Only the caller's own user row is touched. Branch is NOT changeable
+	 * here — membership already carries the GHL-resolved branch.
+	 */
+	completeProfile: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				phone: z.string().min(1),
+				idPassportNo: z.string().min(1),
+				addressType: z.enum(["home", "work"]),
+				streetAddress: z.string().min(1),
+				city: z.string().min(1),
+				state: z.string().min(1),
+				country: z.string().min(1),
+				postalCode: z.string().min(1),
+				dateOfBirth: z.string().min(1), // ISO date string
+				emergencyContactName: z.string().min(1),
+				emergencyContactRelationship: z.string().min(1),
+				emergencyContactPhone: z.string().min(1),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			const controlPanelDb = getControlPanelDb(context);
+			if (!controlPanelDb || !context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Database context not available",
+				});
+			}
+			const userId = context.session.user.id;
+
+			const member = await context.tenantDb.query.members.findFirst({
+				where: eq(members.userId, userId),
+			});
+			if (!member) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"No membership found for this organization. Use your registration invite link instead.",
+				});
+			}
+			if (member.role !== "client") {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Profile completion is only for client members.",
+				});
+			}
+
+			const userRow = await controlPanelDb.query.user.findFirst({
+				where: eq(user.id, userId),
+			});
+			if (userRow?.role) {
+				throw new ORPCError("CONFLICT", {
+					message: "Registration has already been completed.",
+				});
+			}
+
+			await controlPanelDb
+				.update(user)
+				.set({
+					phone: input.phone,
+					idPassportNo: input.idPassportNo,
+					addressType: input.addressType,
+					streetAddress: input.streetAddress,
+					city: input.city,
+					state: input.state,
+					country: input.country,
+					postalCode: input.postalCode,
+					dateOfBirth: input.dateOfBirth,
+					emergencyContactName: input.emergencyContactName,
+					emergencyContactRelationship: input.emergencyContactRelationship,
+					emergencyContactPhone: input.emergencyContactPhone,
+					role: "user",
+					updatedAt: new Date(),
+				})
+				.where(eq(user.id, userId));
+
+			return {
+				success: true,
+				message: "Profile completed successfully",
 				organizationId: input.organizationId,
 			};
 		}),

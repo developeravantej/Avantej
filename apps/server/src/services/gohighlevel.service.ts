@@ -1304,7 +1304,14 @@ export async function approvePendingGhlContact(args: {
 	pending: typeof ghlPendingContacts.$inferSelect;
 	reviewedByUserId: string;
 }): Promise<
-	| { status: "approved"; contactId: string; message: string }
+	| {
+			status: "approved";
+			contactId: string;
+			message: string;
+			customerProfileId: string | null;
+			email: string;
+			emailIsPlaceholder: boolean;
+	  }
 	| { status: "already_reviewed"; contactId: string }
 > {
 	const {
@@ -1409,10 +1416,21 @@ export async function approvePendingGhlContact(args: {
 		throw error;
 	}
 
+	// Onboarding hand-off context for the approval-queue UI: the materialized
+	// profile id plus whether the contact's email can receive a sign-in link.
+	const [createdLink] = await tenantDb
+		.select()
+		.from(ghlContactLinks)
+		.where(eq(ghlContactLinks.ghlContactId, extracted.contactId))
+		.limit(1);
+
 	return {
 		status: "approved",
 		contactId: extracted.contactId,
 		message: "Contact approved and created",
+		customerProfileId: createdLink?.customerProfileId ?? null,
+		email: extracted.email,
+		emailIsPlaceholder: extracted.emailIsPlaceholder,
 	};
 }
 

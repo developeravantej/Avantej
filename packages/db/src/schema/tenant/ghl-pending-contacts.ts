@@ -44,6 +44,11 @@ export const ghlPendingContacts = pgTable(
 		// Control-panel user id of the approver/rejecter (no cross-DB FK).
 		reviewedByUserId: text("reviewed_by_user_id"),
 		reviewedAt: timestamp("reviewed_at"),
+		// Onboarding hand-off (post-approval): when the sign-in link that starts
+		// registration was dispatched, and the control-panel user id who sent it.
+		// Lets the approvals inbox render "Sent ✓ / Resend" durably across reloads.
+		onboardingLinkSentAt: timestamp("onboarding_link_sent_at"),
+		onboardingLinkSentBy: text("onboarding_link_sent_by"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},

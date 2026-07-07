@@ -522,8 +522,20 @@ export const serverCustomerProfilesRouterType = {
 				phone: z.string().min(1),
 				email: z.string().email().optional(),
 				hierarchyScopeId: z.string().uuid(),
-				dateOfBirth: z.string().datetime().optional(),
+				dateOfBirth: z.string().optional(),
 				notes: z.string().optional(),
+				// Optional full onboarding profile ("Full details" mode) — when all
+				// present, the customer is created registration-complete (role "user").
+				idPassportNo: z.string().optional(),
+				addressType: z.enum(["home", "work"]).optional(),
+				streetAddress: z.string().optional(),
+				city: z.string().optional(),
+				state: z.string().optional(),
+				country: z.string().optional(),
+				postalCode: z.string().optional(),
+				emergencyContactName: z.string().optional(),
+				emergencyContactRelationship: z.string().optional(),
+				emergencyContactPhone: z.string().optional(),
 			}),
 		)
 		.handler((): { memberId: string; profileId: string; userId: string } => {
@@ -2398,9 +2410,19 @@ export const ghlRouterType = {
 				pendingId: z.string().uuid(),
 			}),
 		)
-		.handler((): { status: "approved"; contactId: string; message: string } => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+		.handler(
+			(): {
+				status: "approved";
+				contactId: string;
+				message: string;
+				// Onboarding hand-off context for the approval-queue UI
+				customerProfileId: string | null;
+				email: string;
+				emailIsPlaceholder: boolean;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 
 	rejectPendingContact: protectedProcedure
 		.input(
@@ -2422,6 +2444,37 @@ export const ghlRouterType = {
 			}),
 		)
 		.handler((): { status: "ok"; enabled: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	// Onboarding hand-off (post-approval) — durable approved-row lifecycle.
+	listApprovedContacts: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): Array<{
+				id: string;
+				proposedName: string | null;
+				proposedEmail: string | null;
+				proposedPhone: string | null;
+				resolvedBranchNodeId: string | null;
+				reviewedAt: Date | null;
+				onboardingLinkSentAt: Date | null;
+				hasLinkedUser: boolean;
+				emailIsPlaceholder: boolean;
+				registered: boolean;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	sendOnboardingLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				pendingId: z.string().uuid(),
+			}),
+		)
+		.handler((): { success: boolean; email: string; sentAt: Date } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 };

@@ -1,0 +1,10 @@
+{
+	"onboarding/ghl-onboarding-handoff.rule.spec.ts::listApprovedContacts returns the lifecycle shape (admin scope)": [
+		"As the tenant admin, call ghl/listApprovedContacts for the org.",
+		"Assert it returns an array; for each approved row assert the lifecycle fields the queue renders are present and correctly typed — id (string), registered/emailIsPlaceholder/hasLinkedUser (booleans), onboardingLinkSentAt (null until a link is sent, never undefined)."
+	],
+	"onboarding/ghl-onboarding-handoff.rule.spec.ts::sendOnboardingLink for an unknown contact is a clean NOT_FOUND (never 500)": [
+		"Call ghl/sendOnboardingLink with a non-existent pendingId.",
+		"Assert a clean 404 NOT_FOUND ('Approved contact not found') — the hand-off wiring maps a missing contact to a proper error, never an opaque 500, and no email is dispatched."
+	]
+}

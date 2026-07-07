@@ -1,0 +1,17 @@
+{
+	"customers/create-customer-onboarding.rule.spec.ts::quick add leaves the customer registration-incomplete (role null)": [
+		"As admin, call customerProfiles/createUnclaimed with only the essentials (name, phone, branch) — Quick add mode.",
+		"Read the created control-panel user row: assert role is null and the onboarding fields (id_passport_no, emergency_contact_name) are null — the customer must self-complete later.",
+		"Teardown: members/remove (both DBs) + SQL delete of auth rows."
+	],
+	"customers/create-customer-onboarding.rule.spec.ts::full details creates a registration-complete customer (role user, profile persisted)": [
+		"As admin, call createUnclaimed with the full onboarding profile (IC, address type, street/city/state/country/postal, DOB, emergency contact) — Full details mode.",
+		"Read the created user row: assert role='user' (registration complete) and every profile field persisted with the submitted values.",
+		"Teardown: members/remove + SQL auth-row delete."
+	],
+	"customers/create-customer-onboarding.rule.spec.ts::a partial profile does NOT complete registration (all-or-nothing role flip)": [
+		"As admin, call createUnclaimed with SOME but not all onboarding fields (IC + street, no emergency contact).",
+		"Assert role stays null (not completed) while the supplied field (id_passport_no) is still stored — the role flip is strictly all-or-nothing.",
+		"Teardown: members/remove + SQL auth-row delete."
+	]
+}

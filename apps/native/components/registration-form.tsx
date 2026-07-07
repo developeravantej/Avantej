@@ -1151,27 +1151,23 @@ export default function RegistrationForm({
 		if (!validateStep(currentStep)) return;
 
 		setIsSubmitting(true);
-		try {
-			await client.registration.complete({
-				inviteToken,
-				phone: `${phoneCountry.dialCode}${personalDetails.phone}`,
-				idPassportNo: personalDetails.idPassportNo,
-				addressType: personalDetails.addressType,
-				streetAddress: personalDetails.streetAddress,
-				city: personalDetails.city,
-				state: personalDetails.state,
-				country: personalDetails.country,
-				postalCode: personalDetails.postalCode,
-				dateOfBirth: personalDetails.dateOfBirth
-					? `${personalDetails.dateOfBirth.getFullYear()}-${String(personalDetails.dateOfBirth.getMonth() + 1).padStart(2, "0")}-${String(personalDetails.dateOfBirth.getDate()).padStart(2, "0")}`
-					: "",
-				emergencyContactName: emergencyContact.name,
-				emergencyContactRelationship: emergencyContact.relationship,
-				emergencyContactPhone: `${emergencyPhoneCountry.dialCode}${emergencyContact.phone}`,
-				branchId: branchSelection.branchId,
-				organizationId: branchSelection.organizationId,
-			});
-
+		const profileFields = {
+			phone: `${phoneCountry.dialCode}${personalDetails.phone}`,
+			idPassportNo: personalDetails.idPassportNo,
+			addressType: personalDetails.addressType,
+			streetAddress: personalDetails.streetAddress,
+			city: personalDetails.city,
+			state: personalDetails.state,
+			country: personalDetails.country,
+			postalCode: personalDetails.postalCode,
+			dateOfBirth: personalDetails.dateOfBirth
+				? `${personalDetails.dateOfBirth.getFullYear()}-${String(personalDetails.dateOfBirth.getMonth() + 1).padStart(2, "0")}-${String(personalDetails.dateOfBirth.getDate()).padStart(2, "0")}`
+				: "",
+			emergencyContactName: emergencyContact.name,
+			emergencyContactRelationship: emergencyContact.relationship,
+			emergencyContactPhone: `${emergencyPhoneCountry.dialCode}${emergencyContact.phone}`,
+		};
+		const successAlert = () =>
 			Alert.alert(
 				"Registration Submitted",
 				"Your registration has been submitted successfully. Please wait while we set up your account.",
@@ -1182,10 +1178,48 @@ export default function RegistrationForm({
 					},
 				],
 			);
+
+		try {
+			await client.registration.complete({
+				inviteToken,
+				...profileFields,
+				branchId: branchSelection.branchId,
+				organizationId: branchSelection.organizationId,
+			});
+			successAlert();
 		} catch (error: any) {
+			const message: string = error?.message ?? "";
+			// GHL-approved contacts already HAVE a membership (staff approval
+			// created it) — registration.complete rejects them with CONFLICT.
+			// Complete their PROFILE against their real org instead. Key on the
+			// stable oRPC error code; fall back to the message only defensively.
+			const isAlreadyMember =
+				error?.code === "CONFLICT" ||
+				message.toLowerCase().includes("already a member");
+			if (isAlreadyMember) {
+				try {
+					const ctx = await client.auth.userContext({});
+					const orgId = ctx?.organizations?.[0]?.id;
+					if (!orgId) throw new Error("No organization found for this account");
+					await client.registration.completeProfile({
+						organizationId: orgId,
+						...profileFields,
+					});
+					successAlert();
+					return;
+				} catch (fallbackError: any) {
+					Alert.alert(
+						"Registration Failed",
+						fallbackError?.message || "Something went wrong. Please try again.",
+					);
+					return;
+				} finally {
+					setIsSubmitting(false);
+				}
+			}
 			Alert.alert(
 				"Registration Failed",
-				error.message || "Something went wrong. Please try again.",
+				message || "Something went wrong. Please try again.",
 			);
 		} finally {
 			setIsSubmitting(false);

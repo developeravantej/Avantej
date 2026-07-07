@@ -1,0 +1,31 @@
+{
+	"onboarding/registration-web.rule.spec.ts::unauthenticated /register?token=X bounces to /login carrying registrationToken=X": [
+		"Start logged OUT (empty storage state).",
+		"Navigate to /register?token=RULE-TOKEN-123.",
+		"Assert the router bounces to /login and the URL carries registrationToken=RULE-TOKEN-123 — the invite token survives the auth redirect."
+	],
+	"onboarding/registration-web.rule.spec.ts::missing token shows the invite-required notice; a token hides it": [
+		"Start logged-in as the tenant admin.",
+		"Navigate to /register with NO token — assert the 'Registration invite required' notice renders.",
+		"Navigate to /register?token=some-token — assert the notice is absent and the wizard's first-name field renders."
+	],
+	"onboarding/registration-web.rule.spec.ts::step 1 Continue with empty required fields blocks progress with per-field errors": [
+		"Start logged-in as the tenant admin on /register?token=some-token.",
+		"Click Continue with the required fields empty (name/email prefill from the session).",
+		"Assert per-field errors render: Phone, ID/Passport, Street Address, City, State, Postal Code, Date of Birth are each 'required'.",
+		"Assert the wizard is still on Step 1 of 3 — progress blocked."
+	],
+	"onboarding/registration-web.rule.spec.ts::empty inviteToken is rejected by input validation (400)": [
+		"Resolve the tenant's own Malaysia branch via the public registration/listBranches endpoint.",
+		"POST registration/complete with a fully-formed payload but an EMPTY inviteToken.",
+		"Assert 400 with an inviteToken validation issue — no member is ever created."
+	],
+	"onboarding/registration-web.rule.spec.ts::well-formed payload with a bogus token passes validation and is rejected FORBIDDEN": [
+		"POST registration/complete with a fully-formed payload and a bogus invite token.",
+		"Assert 403 FORBIDDEN mentioning the invite token — the payload passed Zod validation and was rejected at the atomic invite-redemption step, proving the wiring reaches the handler."
+	],
+	"onboarding/registration-web.rule.spec.ts::listCountries + listBranches back the branch step with real data": [
+		"Call registration/listCountries — assert a non-empty country list.",
+		"Call registration/listBranches for Malaysia — assert the tenant's own branch is present with its organizationId."
+	]
+}
