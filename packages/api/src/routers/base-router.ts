@@ -74,13 +74,105 @@ import { walkInCustomersRouter } from "./walk-in-customers";
 
 export { customerProfilesRouter, invitationRouter };
 
+// The two inline procedures are named so BaseRouter can reference them by
+// `typeof` (an anonymous handler expression has no nameable type).
+const healthCheck = publicProcedure.handler(() => "OK");
+const privateData = protectedProcedure.handler(({ context }) => ({
+	message: "This is private",
+	user: context.session?.user,
+}));
+
+/**
+ * Explicit type for `baseRouter`. Every field is a `typeof` reference to an
+ * already-named router, so the emitted `.d.ts` stays a list of short references
+ * instead of one giant inferred object literal. A bare `export const baseRouter
+ * = {…}` forces rolldown-plugin-dts to materialize that literal in full, which
+ * trips TS7056 ("inferred type exceeds the maximum length the compiler will
+ * serialize"). This mirrors the appRouter/AppRouter treatment in ./index.ts —
+ * and giving `typeof baseRouter` a nameable shape is also what lets AppRouter
+ * expose these routers (e.g. dataImport) to the web client instead of `any`.
+ */
+export type BaseRouter = {
+	healthCheck: typeof healthCheck;
+	privateData: typeof privateData;
+	hierarchy: typeof hierarchyRouter;
+	invitations: typeof invitationRouter;
+	members: typeof memberRouter;
+	serviceCategories: typeof serviceCategoriesRouter;
+	services: typeof servicesRouter;
+	appointments: typeof appointmentsRouter;
+	packageInstances: typeof packageInstancesRouter;
+	packageInstanceStaff: typeof packageInstanceStaffRouter;
+	preferredTimes: typeof preferredTimesRouter;
+	notifications: typeof notificationsRouter;
+	notificationPreferences: typeof notificationPreferencesRouter;
+	customerProfiles: typeof customerProfilesRouter;
+	userActivityLog: typeof userActivityLogRouter;
+	roles: typeof rolesRouter;
+	permissions: typeof permissionsRouter;
+	rolePermissions: typeof rolePermissionsRouter;
+	serviceCategoryConfig: typeof serviceCategoryConfigRouter;
+	payouts: typeof payoutsRouter;
+	rooms: typeof roomsRouter;
+	salesOrders: typeof salesOrdersRouter;
+	invoices: typeof invoicesRouter;
+	cancelledSales: typeof cancelledSalesRouter;
+	brands: typeof brandsRouter;
+	productCategories: typeof productCategoriesRouter;
+	suppliers: typeof suppliersRouter;
+	unitsOfMeasure: typeof unitsOfMeasureRouter;
+	products: typeof productsRouter;
+	stockRequests: typeof stockRequestsRouter;
+	transferOrders: typeof transferOrdersRouter;
+	expenses: typeof expensesRouter;
+	announcements: typeof announcementsRouter;
+	classSlots: typeof classSlotsRouter;
+	memberProfiles: typeof memberProfilesRouter;
+	waitlist: typeof waitlistRouter;
+	commissionSplits: typeof commissionSplitsRouter;
+	commissionTracks: typeof commissionTracksRouter;
+	commissionIncentives: typeof commissionIncentivesRouter;
+	pushTokens: typeof pushTokensRouter;
+	categoryCommission: typeof categoryCommissionRouter;
+	commissionCycle: typeof commissionCycleRouter;
+	purchaseOrders: typeof purchaseOrdersRouter;
+	goodsReceipts: typeof goodsReceiptsRouter;
+	promotions: typeof promotionsRouter;
+	walkInCustomers: typeof walkInCustomersRouter;
+	taxRates: typeof taxRatesRouter;
+	analytics: typeof analyticsRouter;
+	scheduledReports: typeof scheduledReportsRouter;
+	registration: typeof registrationRouter;
+	coachIntake: typeof coachIntakeRouter;
+	trainerAvailability: typeof trainerAvailabilityRouter;
+	trainerTiers: typeof trainerTiersRouter;
+	serviceMembers: typeof serviceMembersRouter;
+	categoryBufferOverrides: typeof categoryBufferOverridesRouter;
+	installments: typeof installmentsRouter;
+	installmentPlans: typeof installmentPlansRouter;
+	organizationSettings: typeof organizationSettingsRouter;
+	googleCalendar: typeof googleCalendarRouter;
+	customerDirectory: typeof customerDirectoryRouter;
+	auditLogs: typeof auditLogsRouter;
+	checkIns: typeof checkInsRouter;
+	pos: typeof posRouter;
+	refunds: typeof refundsRouter;
+	reports: typeof reportsRouter;
+	memberships: typeof membershipsRouter;
+	households: typeof householdsRouter;
+	branchInvites: typeof branchInvitesRouter;
+	onboarding: typeof onboardingRouter;
+	trainers: typeof trainersRouter;
+	ghlSync: typeof ghlSyncRouter;
+	payrollPeriods: typeof payrollPeriodsRouter;
+	dataImport: typeof dataImportRouter;
+	dataExport: typeof dataExportRouter;
+};
+
 /** Tenant-scoped routers merged into appRouter (Plan D.2.1). */
 export const baseRouter = {
-	healthCheck: publicProcedure.handler(() => "OK"),
-	privateData: protectedProcedure.handler(({ context }) => ({
-		message: "This is private",
-		user: context.session?.user,
-	})),
+	healthCheck,
+	privateData,
 	hierarchy: hierarchyRouter,
 	invitations: invitationRouter,
 	members: memberRouter,
@@ -153,4 +245,8 @@ export const baseRouter = {
 	payrollPeriods: payrollPeriodsRouter,
 	dataImport: dataImportRouter,
 	dataExport: dataExportRouter,
-};
+	// Asserted (not annotated `: BaseRouter`) for the same reason appRouter is:
+	// structurally re-verifying this giant oRPC literal on a cold build exceeds
+	// TS's instantiation depth. Each field is `typeof`-derived from the very
+	// value assigned, so the assertion is tautologically correct. See ./index.ts.
+} as unknown as BaseRouter;
