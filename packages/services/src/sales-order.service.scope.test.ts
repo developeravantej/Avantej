@@ -65,6 +65,7 @@ function subtreeDb(ids: string[]): { db: FakeDb; executeCalls: () => number } {
 		"select",
 		"from",
 		"leftJoin",
+		"innerJoin",
 		"orderBy",
 		"limit",
 		"offset",

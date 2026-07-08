@@ -60,7 +60,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bun-setup
       - name: Run package tests
-        run: bun --cwd ${{ matrix.package }} test
+        # Per-file isolated runner: bun's process-global mock.module poisons
+        # cross-file barrel re-exports when a whole package suite shares one
+        # process (a top-level mock.module of "@avantej-core/services" in one
+        # file stubs getDescendantNodeIds for every sibling scope test). One
+        # process per file is the reliable green gate — mirrors the server-unit
+        # job above. See scripts/run-package-tests-isolated.ts.
+        run: bun run scripts/run-package-tests-isolated.ts ${{ matrix.package }}
 
   build:
     name: Build
