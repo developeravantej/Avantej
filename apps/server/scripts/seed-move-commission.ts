@@ -33,7 +33,7 @@ import {
 	trainerTiers,
 } from "@avantej-core/db/schema/tenant/index";
 import { neonConfig, Pool } from "@neondatabase/serverless";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
