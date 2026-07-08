@@ -58,6 +58,12 @@ function makeMockDb(
 		where: () => selectChain,
 		for: () => selectChain,
 		limit: () => Promise.resolve(row ? [row] : []),
+		// A select awaited AT `.where()` (no `.limit()`) — e.g. cancelPayout's
+		// linkedSplits period-lock probe — resolves to an empty set. The bulk
+		// split-revert still runs via update(commissionSplits), so splitSets is
+		// unaffected; the payout-fetch path keeps resolving through `.limit()`.
+		then: (resolve: (v: unknown) => unknown) =>
+			Promise.resolve([]).then(resolve),
 	};
 
 	const tx = {
