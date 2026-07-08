@@ -639,7 +639,14 @@ function buildBookingsMockDb(options: {
 	const controlPanelDb = { select: cpMockSelect } as any;
 
 	return {
-		db: { select: mockSelect } as any,
+		// listTodaysBookings expands the branch scope via getDescendantNodeIds,
+		// which runs a recursive CTE through tenantDb.execute. Return the queried
+		// branch so the resolved subtree intersects accessibleNodeIds and the
+		// booking query proceeds (the select mocks ignore the scope predicate).
+		db: {
+			select: mockSelect,
+			execute: mock(async () => ({ rows: [{ id: BRANCH_ID }] })),
+		} as any,
 		controlPanelDb,
 	};
 }

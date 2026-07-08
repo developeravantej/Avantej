@@ -44,6 +44,10 @@ const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
 	select: mockSelect,
+	// A branchId filter expands to its subtree via getDescendantNodeIds, which
+	// runs a recursive CTE through execute. Echo the queried branch so the
+	// resolved subtree is non-empty and the branch predicate is applied.
+	execute: mock(async () => ({ rows: [{ id: "br-1" }] })),
 	query: {
 		services: {
 			findMany: mockFindMany,
