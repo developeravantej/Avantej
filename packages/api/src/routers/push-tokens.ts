@@ -10,6 +10,7 @@
 import { registerPushToken, unregisterPushToken } from "@avantej-core/services";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
+import { assertOrgContextMatch } from "../guards";
 
 export const pushTokensRouter = {
 	register: tenantProcedure
@@ -22,6 +23,7 @@ export const pushTokensRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			return registerPushToken(context.tenantDb, {
 				userId: context.session.user.id,
 				token: input.token,
@@ -38,6 +40,7 @@ export const pushTokensRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			return unregisterPushToken(context.tenantDb, input.token);
 		}),
 };

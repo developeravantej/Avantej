@@ -43,22 +43,6 @@ const STATUS_STYLES: Record<
 	failed: { bg: "#fef2f2", border: "#fecaca", text: "#b91c1c" },
 };
 
-/**
- * Row shape for the import-history table. Declared locally and applied via a
- * cast because the web client's Type Check reads the built `@avantej-core/api`
- * dist, where `dataImport.history` currently types as `any` (the dist lags the
- * source router). Fields mirror the dataImport.history select.
- */
-type ImportHistoryRow = {
-	id: string;
-	entity: string;
-	status: string;
-	createdCount: number;
-	skippedCount: number;
-	errorCount: number;
-	createdAt: string;
-};
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function DataImportPage() {
@@ -91,7 +75,7 @@ export function DataImportPage() {
 		}),
 		enabled: !!organizationId,
 	});
-	const history = (historyQuery.data ?? []) as ImportHistoryRow[];
+	const history = historyQuery.data ?? [];
 
 	// ─── Mutations ────────────────────────────────────────────────────────────
 
