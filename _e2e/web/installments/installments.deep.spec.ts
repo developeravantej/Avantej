@@ -147,17 +147,38 @@ test.describe("installments", () => {
 		page,
 	}) => {
 		await openTab(page, "all");
-		const firstRow = page.locator('[data-testid^="installment-row-"]').first();
-		await expect(firstRow).toBeVisible();
+		await expect(
+			page.locator('[data-testid^="installment-row-"]').first(),
+		).toBeVisible({ timeout: 15_000 });
+
+		// A locked (severely-overdue) package legitimately cannot be rescheduled —
+		// the server rejects it CONFLICT. Pick the first row WITHOUT the "Locked"
+		// badge so this exercises the real success contract, not a locked row.
+		const firstRow = page
+			.locator('[data-testid^="installment-row-"]')
+			.filter({ hasNotText: "Locked" })
+			.first();
+		test.skip(
+			!(await firstRow.isVisible().catch(() => false)),
+			"no unlocked installment in this dataset — all rows are locked/overdue",
+		);
+
+		// Remember the exact installment we're rescheduling so we can assert on it
+		// by id afterwards (reschedule updates the row in place — same id).
+		const rowTestId = await firstRow.getAttribute("data-testid");
+		expect(rowTestId).toBeTruthy();
 
 		// Open the reschedule dialog from the row's action button.
 		await firstRow.locator('[data-testid^="reschedule-installment-"]').click();
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toContainText("Reschedule Installment");
 
-		// New date = ~10 days out (stays within a sensible window), with a reason.
+		// New date = +7 days: near-future so it lands inside the "due soon" window
+		// ([now, now+14d]) where we assert. (The "all" tab is unbounded, capped at
+		// 50 rows sorted by due date — with a large overdue backlog ahead, a future
+		// row falls past the cap and never renders, so we assert on due_soon.)
 		const future = new Date();
-		future.setUTCDate(future.getUTCDate() + 10);
+		future.setUTCDate(future.getUTCDate() + 7);
 		const iso = future.toISOString().slice(0, 10);
 		await page.locator("#sales-reschedule-date").fill(iso);
 		await page
@@ -165,19 +186,18 @@ test.describe("installments", () => {
 			.fill("E2E: customer requested extension");
 		await page.getByTestId("reschedule-installment-confirm").click();
 
-		// Success toast, then the list shows the Rescheduled marker on some row.
+		// Success toast confirms the mutation persisted.
 		await expect(page.getByText("Installment rescheduled.")).toBeVisible({
 			timeout: 10_000,
 		});
-		await expect(
-			page
-				.locator('[data-testid^="installment-row-"]', {
-					hasText: "Rescheduled",
-				})
-				.first(),
-		).toBeVisible({ timeout: 10_000 });
-		// The struck-through original date renders alongside the new one.
-		await expect(page.locator(".line-through").first()).toBeVisible();
+
+		// On the due-soon tab (bounded to the next 14 days), the exact rescheduled
+		// row shows the "Rescheduled" badge + the struck-through original date.
+		await openTab(page, "due_soon");
+		const rescheduledRow = page.getByTestId(rowTestId!);
+		await expect(rescheduledRow).toBeVisible({ timeout: 15_000 });
+		await expect(rescheduledRow.getByText("Rescheduled")).toBeVisible();
+		await expect(rescheduledRow.locator(".line-through")).toBeVisible();
 	});
 
 	test("Collect confirms an installment payment and the list updates", async ({
