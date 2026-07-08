@@ -231,7 +231,10 @@ const reschedule = tenantProcedure
 			"update",
 		);
 		try {
-			return rescheduleInstallment(
+			// `await` is required: without it the promise is returned before it
+			// rejects, so the CONFLICT/BAD_REQUEST rejection escapes this catch and
+			// surfaces as an opaque 500 instead of the intended mapped error.
+			return await rescheduleInstallment(
 				context.tenantDb,
 				input.installmentId,
 				new Date(input.newDueDate),
@@ -265,7 +268,9 @@ const waive = tenantProcedure
 			"update",
 		);
 		try {
-			return waiveInstallment(
+			// `await` is required so the service's CONFLICT rejection is caught and
+			// mapped here rather than leaking as an opaque 500 (see reschedule).
+			return await waiveInstallment(
 				context.tenantDb,
 				input.installmentId,
 				context.member.userId,
