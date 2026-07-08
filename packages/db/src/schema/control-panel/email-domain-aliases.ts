@@ -11,33 +11,48 @@
  *   params.localPart > resolved(aliasLabel) > email_domains.defaultLocalPart > "support"
  */
 
-import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	index,
+	uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { emailDomains } from "./email-domains";
 
-export const emailDomainAliases = pgTable("email_domain_aliases", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	emailDomainId: uuid("email_domain_id")
-		.notNull()
-		.references(() => emailDomains.id, { onDelete: "cascade" }),
-	localPart: text("local_part").notNull(),
-	// Optional human label (e.g. "Support team", "Marketing blasts"). Callers
-	// can pass this to sendTenantEmail({ aliasLabel: ... }) to pick the alias.
-	label: text("label"),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-	emailDomainIdIdx: index("email_domain_aliases_domain_idx").on(table.emailDomainId),
-	// Two aliases on the same domain can't share a local-part.
-	domainLocalPartUniqueIdx: uniqueIndex("email_domain_aliases_domain_local_unique_idx").on(
-		table.emailDomainId,
-		table.localPart,
-	),
-}));
-
-export const emailDomainAliasesRelations = relations(emailDomainAliases, ({ one }) => ({
-	emailDomain: one(emailDomains, {
-		fields: [emailDomainAliases.emailDomainId],
-		references: [emailDomains.id],
+export const emailDomainAliases = pgTable(
+	"email_domain_aliases",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		emailDomainId: uuid("email_domain_id")
+			.notNull()
+			.references(() => emailDomains.id, { onDelete: "cascade" }),
+		localPart: text("local_part").notNull(),
+		// Optional human label (e.g. "Support team", "Marketing blasts"). Callers
+		// can pass this to sendTenantEmail({ aliasLabel: ... }) to pick the alias.
+		label: text("label"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	},
+	(table) => ({
+		emailDomainIdIdx: index("email_domain_aliases_domain_idx").on(
+			table.emailDomainId,
+		),
+		// Two aliases on the same domain can't share a local-part.
+		domainLocalPartUniqueIdx: uniqueIndex(
+			"email_domain_aliases_domain_local_unique_idx",
+		).on(table.emailDomainId, table.localPart),
 	}),
-}));
+);
+
+export const emailDomainAliasesRelations = relations(
+	emailDomainAliases,
+	({ one }) => ({
+		emailDomain: one(emailDomains, {
+			fields: [emailDomainAliases.emailDomainId],
+			references: [emailDomains.id],
+		}),
+	}),
+);

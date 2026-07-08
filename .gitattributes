@@ -1,0 +1,31 @@
+# Normalize all text files to LF in the repository, and check them out as LF on
+# every platform (including Windows). This fixes the historic mixed CRLF/LF
+# state that made the "Format (Biome)" CI gate unreliably red: biome.json uses
+# the default `lineEnding: lf`, so any CRLF-committed file was flagged. Binary
+# files are auto-detected by `text=auto` and left byte-for-byte untouched.
+* text=auto eol=lf
+
+# Windows-only scripts that genuinely require CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicit binaries (belt-and-suspenders; text=auto already detects these).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.pdf binary
+*.mp4 binary
+*.webm binary
+*.mov binary
+*.zip binary
+*.gz binary
+*.wasm binary

@@ -33,7 +33,10 @@ export function renderSubjectTemplate(
 	template: string,
 	vars: Record<string, string>,
 ): string {
-	return template.replace(/\{(\w+)\}/g, (_match, key: string) => vars[key] ?? "");
+	return template.replace(
+		/\{(\w+)\}/g,
+		(_match, key: string) => vars[key] ?? "",
+	);
 }
 
 /**
@@ -42,10 +45,12 @@ export function renderSubjectTemplate(
  * (after token interpolation) so malicious token values can't inject headers.
  */
 export function sanitizeSubject(subject: string): string {
-	return subject
-		// eslint-disable-next-line no-control-regex
-		.replace(/[\x00-\x1F\x7F]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim()
-		.slice(0, 255);
+	return (
+		subject
+			// eslint-disable-next-line no-control-regex
+			.replace(/[\x00-\x1F\x7F]+/g, " ")
+			.replace(/\s+/g, " ")
+			.trim()
+			.slice(0, 255)
+	);
 }

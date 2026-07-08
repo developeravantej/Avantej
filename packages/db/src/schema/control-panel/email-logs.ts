@@ -9,43 +9,56 @@
  * dashboards, billing usage) are easier here too.
  */
 
-import { pgTable, uuid, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	jsonb,
+	index,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { emailDomains } from "./email-domains";
 
-export const emailLogs = pgTable("email_logs", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	organizationId: uuid("organization_id")
-		.notNull()
-		.references(() => organizations.id, { onDelete: "cascade" }),
-	// FK to the sending domain used. Null = sent via platform fallback
-	// (RESEND_FROM_EMAIL) before the tenant verified their own domain.
-	emailDomainId: uuid("email_domain_id").references(() => emailDomains.id, {
-		onDelete: "set null",
+export const emailLogs = pgTable(
+	"email_logs",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => organizations.id, { onDelete: "cascade" }),
+		// FK to the sending domain used. Null = sent via platform fallback
+		// (RESEND_FROM_EMAIL) before the tenant verified their own domain.
+		emailDomainId: uuid("email_domain_id").references(() => emailDomains.id, {
+			onDelete: "set null",
+		}),
+		// Resend message id (e.g. "re_xxx"). Unique → idempotency for webhooks.
+		resendMessageId: text("resend_message_id").notNull().unique(),
+		fromAddress: text("from_address").notNull(),
+		toAddress: text("to_address").notNull(),
+		subject: text("subject").notNull(),
+		// Notification type that produced this send (member_invitation,
+		// payment_receipt, auth_*). Null for diagnostic/test sends + legacy rows.
+		notificationType: text("notification_type"),
+		// queued | sent | delivered | bounced | complained | opened | clicked | failed
+		status: text("status").notNull().default("queued"),
+		lastEventType: text("last_event_type"),
+		lastEventAt: timestamp("last_event_at"),
+		errorMessage: text("error_message"),
+		// Verbatim last webhook payload for forensics / debugging.
+		lastEventPayload: jsonb("last_event_payload"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	},
+	(table) => ({
+		organizationIdIdx: index("email_logs_organization_idx").on(
+			table.organizationId,
+		),
+		statusIdx: index("email_logs_status_idx").on(table.status),
+		createdAtIdx: index("email_logs_created_at_idx").on(table.createdAt),
 	}),
-	// Resend message id (e.g. "re_xxx"). Unique → idempotency for webhooks.
-	resendMessageId: text("resend_message_id").notNull().unique(),
-	fromAddress: text("from_address").notNull(),
-	toAddress: text("to_address").notNull(),
-	subject: text("subject").notNull(),
-	// Notification type that produced this send (member_invitation,
-	// payment_receipt, auth_*). Null for diagnostic/test sends + legacy rows.
-	notificationType: text("notification_type"),
-	// queued | sent | delivered | bounced | complained | opened | clicked | failed
-	status: text("status").notNull().default("queued"),
-	lastEventType: text("last_event_type"),
-	lastEventAt: timestamp("last_event_at"),
-	errorMessage: text("error_message"),
-	// Verbatim last webhook payload for forensics / debugging.
-	lastEventPayload: jsonb("last_event_payload"),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-	organizationIdIdx: index("email_logs_organization_idx").on(table.organizationId),
-	statusIdx: index("email_logs_status_idx").on(table.status),
-	createdAtIdx: index("email_logs_created_at_idx").on(table.createdAt),
-}));
+);
 
 export const emailLogsRelations = relations(emailLogs, ({ one }) => ({
 	organization: one(organizations, {

@@ -201,9 +201,7 @@ async function seedFreshInstallmentSale(page: Page): Promise<{
  * existing overdue installments that are always visible in the first 50.
  */
 async function goToInstallmentsTab(page: Page): Promise<void> {
-	await page.goto(
-		"/dashboard/sales/view?tab=installments&instStatus=due_soon",
-	);
+	await page.goto("/dashboard/sales/view?tab=installments&instStatus=due_soon");
 	// Wait for the table OR the empty-state to render
 	await expect(
 		page
@@ -294,8 +292,7 @@ test.describe("installment admin UI — dialog click-paths", () => {
 			return;
 		}
 
-		const fullDue =
-			row.amount + (row.taxAmount ?? 0) - (row.amountPaid ?? 0);
+		const fullDue = row.amount + (row.taxAmount ?? 0) - (row.amountPaid ?? 0);
 		const halfDueCents = Math.floor(fullDue / 2);
 		const halfDueRm = (halfDueCents / 100).toFixed(2);
 
@@ -352,9 +349,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await confirmBtn2.click();
 
 		// Success toast
-		await expect(
-			page.locator("text=/Payment confirmed/i").first(),
-		).toBeVisible({ timeout: 8_000 });
+		await expect(page.locator("text=/Payment confirmed/i").first()).toBeVisible(
+			{ timeout: 8_000 },
+		);
 
 		// Dialog should close
 		await expect(amountInput2).not.toBeVisible({ timeout: 5_000 });
@@ -370,7 +367,10 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await page.goto("/dashboard");
 		const fresh = await seedFreshInstallmentSale(page);
 		if (!fresh) {
-			test.skip(true, "Could not seed fresh installment sale — run bun e2e:seed");
+			test.skip(
+				true,
+				"Could not seed fresh installment sale — run bun e2e:seed",
+			);
 			return;
 		}
 
@@ -418,9 +418,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await confirmBtn.click();
 
 		// Success toast
-		await expect(
-			page.locator("text=/Payment confirmed/i").first(),
-		).toBeVisible({ timeout: 8_000 });
+		await expect(page.locator("text=/Payment confirmed/i").first()).toBeVisible(
+			{ timeout: 8_000 },
+		);
 
 		// Dialog closes
 		await expect(amountInput).not.toBeVisible({ timeout: 5_000 });
@@ -431,7 +431,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 
 		// The row should still be visible (partial — still pending)
 		await findInstallmentRow(page, visibleRow.id);
-		const row = page.locator(`[data-testid="installment-row-${visibleRow.id}"]`);
+		const row = page.locator(
+			`[data-testid="installment-row-${visibleRow.id}"]`,
+		);
 		// The row should show "(X paid)" in the amount column
 		await expect(row).toContainText(/paid/i, { timeout: 5_000 });
 	});
@@ -480,7 +482,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		).toBeVisible();
 
 		// Verify the confirm button is present and has correct text
-		const confirmBtn = page.locator('[data-testid="waive-installment-confirm"]');
+		const confirmBtn = page.locator(
+			'[data-testid="waive-installment-confirm"]',
+		);
 		await expect(confirmBtn).toHaveText("Waive Installment");
 
 		// Fill reason and submit
@@ -488,9 +492,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await confirmBtn.click();
 
 		// Success toast
-		await expect(page.locator("text=/Installment waived/i").first()).toBeVisible(
-			{ timeout: 8_000 },
-		);
+		await expect(
+			page.locator("text=/Installment waived/i").first(),
+		).toBeVisible({ timeout: 8_000 });
 
 		// Dialog should close
 		await expect(reasonArea).not.toBeVisible({ timeout: 5_000 });
@@ -557,9 +561,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await confirmBtn.click();
 
 		// Success toast
-		await expect(
-			page.locator("text=/Credits adjusted/i").first(),
-		).toBeVisible({ timeout: 8_000 });
+		await expect(page.locator("text=/Credits adjusted/i").first()).toBeVisible({
+			timeout: 8_000,
+		});
 
 		// AdjustCreditsDialog should close
 		await expect(adjustTitle).not.toBeVisible({ timeout: 5_000 });
@@ -711,9 +715,9 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		await confirmBtn.click();
 
 		// Success toast
-		await expect(
-			page.locator("text=/Refund processed/i").first(),
-		).toBeVisible({ timeout: 10_000 });
+		await expect(page.locator("text=/Refund processed/i").first()).toBeVisible({
+			timeout: 10_000,
+		});
 
 		// Dialog should close
 		await expect(refundTitle).not.toBeVisible({ timeout: 5_000 });
@@ -820,9 +824,7 @@ test.describe("installment admin UI — dialog click-paths", () => {
 		if (!stripeKey) {
 			// Without Stripe key the mutation will error — expect an error toast
 			await expect(
-				page
-					.locator("text=/Failed to generate payment link/i")
-					.first(),
+				page.locator("text=/Failed to generate payment link/i").first(),
 			).toBeVisible({ timeout: 8_000 });
 			test.skip(
 				true,
