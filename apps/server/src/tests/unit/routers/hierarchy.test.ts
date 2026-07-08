@@ -458,8 +458,14 @@ describe("hierarchyRouter.deleteNode", () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
 		mockGetDescendantNodeIds.mockResolvedValueOnce([]);
+		// The router maps the child-block by `instanceof HierarchyDeleteBlockedError`
+		// (robust to message edits), so the mock must throw the typed error — a
+		// plain Error now falls through to INTERNAL_SERVER_ERROR.
 		mockDeleteHierarchyNode.mockRejectedValueOnce(
-			new Error("Cannot delete: child node exists"),
+			new realHierarchyService.HierarchyDeleteBlockedError(
+				"Cannot delete: child node exists",
+				"children",
+			),
 		);
 
 		await expect(

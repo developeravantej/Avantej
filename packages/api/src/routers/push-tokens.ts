@@ -2,19 +2,17 @@
  * Push Tokens Router
  *
  * API endpoints for registering / unregistering Expo push notification
- * tokens on the user's devices. Tokens live in tenant DBs.
+ * tokens on the user's devices. Tokens live in tenant DBs, so these run on
+ * `tenantProcedure` — which guarantees `context.tenantDb` and that the caller
+ * is a member of the org (the perimeter invariant enforced in CI).
  */
 
-import {
-	registerPushToken,
-	unregisterPushToken,
-} from "@avantej-core/services";
-import { ORPCError } from "@orpc/server";
+import { registerPushToken, unregisterPushToken } from "@avantej-core/services";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 export const pushTokensRouter = {
-	register: protectedProcedure
+	register: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -24,29 +22,15 @@ export const pushTokensRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			const userId = context.session?.user?.id;
-			if (!userId) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "User session required",
-				});
-			}
-
 			return registerPushToken(context.tenantDb, {
-				userId,
+				userId: context.session.user.id,
 				token: input.token,
 				platform: input.platform,
 				deviceId: input.deviceId,
 			});
 		}),
 
-	unregister: protectedProcedure
+	unregister: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -54,20 +38,6 @@ export const pushTokensRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			const userId = context.session?.user?.id;
-			if (!userId) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "User session required",
-				});
-			}
-
 			return unregisterPushToken(context.tenantDb, input.token);
 		}),
 };
