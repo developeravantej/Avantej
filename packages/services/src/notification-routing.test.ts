@@ -40,27 +40,37 @@ describe("SUBJECT_TOKENS", () => {
 
 describe("renderSubjectTemplate", () => {
 	test("substitutes known tokens", () => {
-		expect(renderSubjectTemplate("Payment receipt — {amount}", { amount: "MYR 50.00" }))
-			.toBe("Payment receipt — MYR 50.00");
+		expect(
+			renderSubjectTemplate("Payment receipt — {amount}", {
+				amount: "MYR 50.00",
+			}),
+		).toBe("Payment receipt — MYR 50.00");
 	});
 
 	test("replaces unknown / missing tokens with empty string", () => {
-		expect(renderSubjectTemplate("Hi {orgName} {missing}", { orgName: "Acme" }))
-			.toBe("Hi Acme ");
+		expect(
+			renderSubjectTemplate("Hi {orgName} {missing}", { orgName: "Acme" }),
+		).toBe("Hi Acme ");
 	});
 
 	test("leaves a template with no tokens unchanged", () => {
-		expect(renderSubjectTemplate("Verify your email", {})).toBe("Verify your email");
+		expect(renderSubjectTemplate("Verify your email", {})).toBe(
+			"Verify your email",
+		);
 	});
 });
 
 describe("sanitizeSubject", () => {
 	test("strips CR/LF/tab and other control chars", () => {
-		expect(sanitizeSubject("Hello\r\nBcc: evil@x.com")).toBe("Hello Bcc: evil@x.com");
+		expect(sanitizeSubject("Hello\r\nBcc: evil@x.com")).toBe(
+			"Hello Bcc: evil@x.com",
+		);
 	});
 
 	test("strips control chars injected via a token value (post-interpolation)", () => {
-		const rendered = renderSubjectTemplate("Hi {name}", { name: "Bob\r\nSubject: x" });
+		const rendered = renderSubjectTemplate("Hi {name}", {
+			name: "Bob\r\nSubject: x",
+		});
 		expect(sanitizeSubject(rendered)).toBe("Hi Bob Subject: x");
 	});
 

@@ -102,10 +102,15 @@ async function getPackageInstance(
 	page: Page,
 	packageInstanceId: string,
 ): Promise<PackageState> {
-	return orpcCall<object, PackageState>(page, "installments", "getPackageState", {
-		organizationId: TEST_ORG_ID,
-		packageInstanceId,
-	});
+	return orpcCall<object, PackageState>(
+		page,
+		"installments",
+		"getPackageState",
+		{
+			organizationId: TEST_ORG_ID,
+			packageInstanceId,
+		},
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -188,10 +193,9 @@ test.describe("installment lifecycle", () => {
 			"paid",
 		);
 		for (let i = 1; i < n; i++) {
-			expect(
-				sorted[i]!.status,
-				`installment #${i + 1} must be pending`,
-			).toBe("pending");
+			expect(sorted[i]!.status, `installment #${i + 1} must be pending`).toBe(
+				"pending",
+			);
 		}
 	});
 
@@ -461,9 +465,12 @@ test.describe("installment lifecycle", () => {
 			// now that seed-commission-track-test-tenant.ts has been run).
 			console.warn(
 				"D: no per-installment commission splits found — clean-exit path." +
-				" Run: cd apps/server && bun run scripts/seed-commission-track-test-tenant.ts",
+					" Run: cd apps/server && bun run scripts/seed-commission-track-test-tenant.ts",
 			);
-			expect(true, "D: clean-exit path — no commission tracks (seed script needed)").toBe(true);
+			expect(
+				true,
+				"D: clean-exit path — no commission tracks (seed script needed)",
+			).toBe(true);
 			return;
 		}
 
@@ -477,10 +484,12 @@ test.describe("installment lifecycle", () => {
 		//                   max(0, planned - alreadyAttributed)            [last]
 		// Sum should equal planned exactly (true-up guarantee).
 		const RATE_BPS = 1000;
-		const expectedPlannedOriginationCents = Math.floor(totalCents * RATE_BPS / 10000);
+		const expectedPlannedOriginationCents = Math.floor(
+			(totalCents * RATE_BPS) / 10000,
+		);
 		console.log(
 			`D: totalCents=${totalCents}, rateBps=${RATE_BPS}, ` +
-			`expectedPlanned=${expectedPlannedOriginationCents}¢`,
+				`expectedPlanned=${expectedPlannedOriginationCents}¢`,
 		);
 
 		// D.1 Number of commission rows with installmentId = exactly n (one per installment)
@@ -504,7 +513,9 @@ test.describe("installment lifecycle", () => {
 		const installmentDueCents = 3000; // each installment in this test = 3000 cents
 		for (let i = 0; i < n - 1; i++) {
 			const inst = sorted[i]!;
-			const split = splitsWithInstallmentId.find(s => s.installmentId === inst.id)!;
+			const split = splitsWithInstallmentId.find(
+				(s) => s.installmentId === inst.id,
+			)!;
 			const expectedAmount = Math.floor(
 				(expectedPlannedOriginationCents * installmentDueCents) / totalCents,
 			);
@@ -532,11 +543,16 @@ test.describe("installment lifecycle", () => {
 
 		// D.5 Last installment has the true-up row
 		const lastInst = sorted[n - 1]!;
-		const lastSplit = splitsWithInstallmentId.find(s => s.installmentId === lastInst.id)!;
+		const lastSplit = splitsWithInstallmentId.find(
+			(s) => s.installmentId === lastInst.id,
+		)!;
 		const nonLastSum = splitsWithInstallmentId
-			.filter(s => s.installmentId !== lastInst.id)
+			.filter((s) => s.installmentId !== lastInst.id)
 			.reduce((acc, s) => acc + s.calculatedAmount, 0);
-		const expectedLastAmount = Math.max(0, expectedPlannedOriginationCents - nonLastSum);
+		const expectedLastAmount = Math.max(
+			0,
+			expectedPlannedOriginationCents - nonLastSum,
+		);
 		console.log(
 			`D: last installment true-up: ${lastSplit.calculatedAmount}¢ (expected ${expectedLastAmount}¢)`,
 		);
@@ -629,7 +645,9 @@ test.describe("installment lifecycle", () => {
 
 		// E.3 package has no more pending installments — read the full schedule
 		const rowsAfter = await getInstallments(page, packageInstanceId);
-		const anyPending = rowsAfter.some((r) => r.status === "pending" || r.status === "overdue");
+		const anyPending = rowsAfter.some(
+			(r) => r.status === "pending" || r.status === "overdue",
+		);
 		expect(
 			anyPending,
 			"E: no pending installments should remain after waive of the last one",
@@ -718,9 +736,10 @@ test.describe("installment lifecycle", () => {
 		});
 
 		// F.1 success flag
-		expect(refundResult.success, "F: processRefund must return success=true").toBe(
-			true,
-		);
+		expect(
+			refundResult.success,
+			"F: processRefund must return success=true",
+		).toBe(true);
 
 		// F.2 refundedInstallmentIds contains #1
 		expect(
@@ -746,10 +765,9 @@ test.describe("installment lifecycle", () => {
 			(a, b) => a.installmentNumber - b.installmentNumber,
 		);
 
-		expect(
-			sortedAfter[0]!.status,
-			"F: installment #1 must be refunded",
-		).toBe("refunded");
+		expect(sortedAfter[0]!.status, "F: installment #1 must be refunded").toBe(
+			"refunded",
+		);
 		for (let i = 1; i < n; i++) {
 			expect(
 				sortedAfter[i]!.status,
@@ -787,7 +805,7 @@ test.describe("installment lifecycle", () => {
 			});
 			const items: NotificationRow[] = Array.isArray(notifs)
 				? notifs
-				: (notifs as { items?: NotificationRow[] }).items ?? [];
+				: ((notifs as { items?: NotificationRow[] }).items ?? []);
 
 			const refundNotif = items.find(
 				(n) =>
@@ -826,9 +844,7 @@ test.describe("installment lifecycle", () => {
 	}) => {
 		// Detect STRIPE_SECRET_KEY availability (same approach as pos-stripe-edge-cases)
 		const stripeKey =
-			readDevVar("STRIPE_SECRET_KEY") ??
-			process.env.STRIPE_SECRET_KEY ??
-			null;
+			readDevVar("STRIPE_SECRET_KEY") ?? process.env.STRIPE_SECRET_KEY ?? null;
 		if (!stripeKey) {
 			test.skip(true, "STRIPE_SECRET_KEY not set — skipping Stripe link test");
 			return;
@@ -877,7 +893,10 @@ test.describe("installment lifecycle", () => {
 		// Pick the first pending installment (#2)
 		const pendingInst = sorted.find((r) => r.status === "pending");
 		if (!pendingInst) {
-			test.skip(true, "G: no pending installment found (plan may be 1-installment)");
+			test.skip(
+				true,
+				"G: no pending installment found (plan may be 1-installment)",
+			);
 			return;
 		}
 

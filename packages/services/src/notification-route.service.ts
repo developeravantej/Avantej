@@ -16,7 +16,8 @@ import type { NotificationType } from "./notification-routing";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
-export type EmailNotificationRouteRow = typeof emailNotificationRoutes.$inferSelect;
+export type EmailNotificationRouteRow =
+	typeof emailNotificationRoutes.$inferSelect;
 
 export interface ResolvedNotificationRoute {
 	aliasId: string | null;
