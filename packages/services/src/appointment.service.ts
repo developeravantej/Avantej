@@ -506,6 +506,49 @@ export async function createAppointment(
 				);
 			}
 
+			// AVANTEJ-5: the New Booking form sends staffAssignments but not
+			// trainerId, so appointments.trainerId (a members.id FK used by the
+			// individual-trainer schedule filter) was left null and the booking
+			// vanished from single-trainer views (it only showed under "All
+			// trainers"). Mirror updateAppointment: when trainerId wasn't provided,
+			// backfill it from the slot-0 staff assignment.
+			if (!params.trainerId) {
+				const slot0 = staffAssignmentsToInsert.find((a) => a.slotIndex === 0);
+				if (slot0) {
+					const backfilledTrainerId = await resolveMemberIdFromUserId(
+						tx as unknown as TenantDb,
+						slot0.staffId,
+					);
+					if (backfilledTrainerId) {
+						await tx
+							.update(appointments)
+							.set({ trainerId: backfilledTrainerId, updatedAt: new Date() })
+							.where(eq(appointments.id, row.id));
+					}
+				}
+			}
+
+			// AVANTEJ-5: record the customer in appointment_clients so the customer
+			// profile's APPOINTMENTS tile (which counts appointment_clients) reflects
+			// the booking, and the attendee-based commission count isn't zero. The
+			// unique (appointment_id, client_id) index makes this idempotent.
+			if (params.userId) {
+				await tx
+					.insert(appointmentClients)
+					.values({
+						appointmentId: row.id,
+						clientId: params.userId,
+						pricePaid: params.pricePerClient ?? 0,
+						packageInstanceId: params.packageInstanceId ?? null,
+					})
+					.onConflictDoNothing({
+						target: [
+							appointmentClients.appointmentId,
+							appointmentClients.clientId,
+						],
+					});
+			}
+
 			// A.1.8 — Persist recurrence rule if provided
 			if (params.recurrence) {
 				// Mark the appointment as the head of a recurring series

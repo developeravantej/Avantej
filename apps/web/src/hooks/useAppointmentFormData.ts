@@ -124,7 +124,11 @@ export function useAppointmentFormData(): UseAppointmentFormDataResult {
 	const services: ServiceRow[] = rawServices.map((s) => ({
 		id: s.id,
 		name: s.name,
-		durationMinutes: Math.round(s.duration / 60), // seconds → minutes
+		// AVANTEJ-6: services.duration is stored in the unit given by
+		// durationUnitType, which defaults to "minutes" (the service form always
+		// writes minutes). The old `/60` assumed seconds and turned a 60-min
+		// service into 1 min, so appointments were created 1 minute long.
+		durationMinutes: s.duration,
 		creditCost: s.price ?? 0, // cents; TODO: confirm display unit with team
 		schedulingType: s.schedulingType ?? "appointment",
 	}));

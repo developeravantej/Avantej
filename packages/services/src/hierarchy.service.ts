@@ -1179,6 +1179,43 @@ export async function listNodesWithStats(
 		}
 	}
 
+	// AVANTEJ-14: the branch_stats_cache stores each node's LOCAL counts (rows
+	// whose hierarchyScopeId == the node itself). Staff/members are scoped to leaf
+	// branch nodes, so a non-leaf node (org root, region, country) only picked up
+	// whatever was assigned directly to it — the org root "MOVE Private Fitness"
+	// showed 1/1 instead of the org-wide totals. Roll the local counts up each
+	// node's subtree so every node reports itself + all descendants.
+	const childrenByParent = new Map<string, string[]>();
+	for (const n of scopedNodes) {
+		if (!n.parentId) continue;
+		const arr = childrenByParent.get(n.parentId);
+		if (arr) arr.push(n.id);
+		else childrenByParent.set(n.parentId, [n.id]);
+	}
+	const rollupMemo = new Map<
+		string,
+		{ members: number; staff: number; revenue: number }
+	>();
+	const rollupSubtree = (
+		id: string,
+	): { members: number; staff: number; revenue: number } => {
+		const memo = rollupMemo.get(id);
+		if (memo) return memo;
+		const local = cacheMap.get(id);
+		let members = Number(local?.membersCount ?? 0);
+		let staff = Number(local?.staffCount ?? 0);
+		let revenue = Number(local?.monthRevenueCents ?? 0);
+		for (const childId of childrenByParent.get(id) ?? []) {
+			const c = rollupSubtree(childId);
+			members += c.members;
+			staff += c.staff;
+			revenue += c.revenue;
+		}
+		const result = { members, staff, revenue };
+		rollupMemo.set(id, result);
+		return result;
+	};
+
 	// 4. Merge
 	// WS1: each node's currency = its country's currency (no extra query — the
 	// node list already includes the country nodes). Org root has no country → default.
@@ -1214,6 +1251,9 @@ export async function listNodesWithStats(
 		const staleness =
 			Date.now() - new Date(cached.computedAt).getTime() > 5 * 60 * 1000;
 
+		// AVANTEJ-14: report subtree totals (self + descendants), not node-local.
+		const rolled = rollupSubtree(node.id);
+
 		return {
 			id: node.id,
 			name: node.name,
@@ -1222,9 +1262,9 @@ export async function listNodesWithStats(
 			parentId: node.parentId ?? null,
 			address: null,
 			openingHours: null,
-			membersCount: cached.membersCount,
-			staffCount: cached.staffCount,
-			monthRevenueCents: cached.monthRevenueCents,
+			membersCount: rolled.members,
+			staffCount: rolled.staff,
+			monthRevenueCents: rolled.revenue,
 			currency: currencyForNode(node),
 			stale: staleness,
 		};

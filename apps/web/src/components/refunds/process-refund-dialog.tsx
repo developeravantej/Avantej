@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 type RefundMethod = "cash" | "card_reversal" | "bank_transfer" | "store_credit";
 
@@ -83,7 +83,10 @@ export function ProcessRefundDialog({
 
 				toast.success("Refund marked as processed.");
 				queryClient.invalidateQueries({
-					queryKey: ["refunds", organizationId],
+					// AVANTEJ-12: the refunds list uses the oRPC-namespaced query key;
+					// the old literal ["refunds", organizationId] never matched, so the
+					// row kept its stale "Approved" status until a manual reload.
+					queryKey: orpc.refunds.list.key(),
 				});
 				onOpenChange(false);
 				form.reset();

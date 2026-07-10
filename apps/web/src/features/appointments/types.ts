@@ -45,6 +45,9 @@ export type CreateAppointmentParams = {
 	duration: number;
 	notes?: string;
 	userId?: string | null;
+	// AVANTEJ-5: carry the selected service so the created appointment stores it
+	// (otherwise the Schedule "Service" column shows "—").
+	serviceId?: string | null;
 	staffAssignments?: { staffId: string; slotIndex: number }[];
 	recurrence?: CreateRecurrenceParams;
 };

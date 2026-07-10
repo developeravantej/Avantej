@@ -948,6 +948,9 @@ export function useAppointmentFormState({
 				creditPoints: 0,
 			},
 			service: selectedServices.map((s) => s.name).join(", "),
+			// AVANTEJ-5: also pass the first selected service's id so the created
+			// appointment stores serviceId (Schedule Service column was "—").
+			serviceId: selectedServices[0]?.id ?? null,
 			remarks: newAppointment.remarks || undefined,
 			start: startDateTime,
 			end: endDateTime,

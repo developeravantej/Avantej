@@ -28,6 +28,10 @@ export const appointmentsListProcedures = {
 				branchId: z.string().uuid().optional(),
 				serviceId: z.string().uuid().nullable().optional(),
 				trainerId: z.string().uuid().optional(),
+				// AVANTEJ-10: filter to one customer (members.userId). The customer
+				// profile Appointments tab passes this so it fetches only that
+				// customer's appointments instead of the whole org's.
+				userId: z.string().min(1).optional(),
 				status: statusSchema.optional(),
 				startFrom: z.string().datetime().optional(),
 				startTo: z.string().datetime().optional(),
@@ -68,6 +72,7 @@ export const appointmentsListProcedures = {
 			let items = await listAppointmentsWithRecurrence(context.tenantDb, {
 				organizationId: input.organizationId,
 				trainerId: input.trainerId,
+				userId: input.userId,
 				startFrom,
 				startTo,
 				accessibleNodeIds,

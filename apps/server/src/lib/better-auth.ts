@@ -530,11 +530,17 @@ function createBetterAuth(c?: Context) {
 			// Phase A: share the session cookie across all *.avantej.com tenant subdomains
 			// so a login on one subdomain is valid platform-wide. Requires secure cookies
 			// (sameSite=none/secure), so this only takes effect over https (isHttps via
-			// BETTER_AUTH_URL). Local http dev on avantej.localhost stays host-only — fine.
-			crossSubDomainCookies: {
-				enabled: true,
-				domain: ".avantej.com",
-			},
+			// BETTER_AUTH_URL). Local http dev (localhost / avantej.localhost) stays
+			// host-only — otherwise Domain=.avantej.com is rejected by the browser on
+			// localhost and the session cookie silently drops (breaks local login + e2e).
+			...(isHttps
+				? {
+						crossSubDomainCookies: {
+							enabled: true,
+							domain: ".avantej.com",
+						},
+					}
+				: {}),
 		},
 		plugins: [
 			expo(), // Expo plugin - safe for both web and native, only activates for Expo requests

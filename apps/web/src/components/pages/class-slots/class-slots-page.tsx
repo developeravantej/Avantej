@@ -85,6 +85,17 @@ export function ClassSlotsPage() {
 		enabled: !!organizationId,
 	});
 
+	// AVANTEJ-10: the Instructor <Select> mounts one Radix <SelectItem> per option
+	// synchronously when opened. `membersData` is the whole roster including every
+	// `client` (customers — thousands in a real tenant), which froze the main
+	// thread for tens of seconds. Instructors are staff, never customers, so pass
+	// only non-client members to the dialogs. Full `membersData` is kept for
+	// instructor-name resolution in the list rows below.
+	const instructorOptions = useMemo(
+		() => membersData.filter((m) => m.role !== "client"),
+		[membersData],
+	);
+
 	const { data: signups = [], isLoading: signupsLoading } = useQuery({
 		...orpc.classSlots.getSignups.queryOptions({
 			input: {
@@ -431,7 +442,7 @@ export function ClassSlotsPage() {
 				onOpenChange={setCreateSheetOpen}
 				organizationId={organizationId}
 				services={services}
-				membersData={membersData}
+				membersData={instructorOptions}
 				createForm={createForm}
 				setCreateForm={setCreateForm}
 				isPending={createMutation.isPending}
@@ -442,7 +453,7 @@ export function ClassSlotsPage() {
 				open={editSheetOpen}
 				onOpenChange={setEditSheetOpen}
 				editingSlot={editingSlot}
-				membersData={membersData}
+				membersData={instructorOptions}
 				editForm={editForm}
 				setEditForm={setEditForm}
 				isPending={updateMutation.isPending}

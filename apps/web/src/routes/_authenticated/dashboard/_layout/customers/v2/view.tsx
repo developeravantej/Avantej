@@ -89,13 +89,17 @@ function CustomersV2Page() {
 					<span className="text-[#a3a3a3]">/</span>
 					<span className="font-semibold">Directory</span>
 				</div>
-				<div className="ml-auto flex items-center gap-2">
-					<ScopeSwitcher />
+				<div className="ml-auto flex min-w-0 items-center gap-2">
+					{/* AVANTEJ-11: ScopeSwitcher's trigger is w-full by default, which
+					    inflated this auto-width toolbar and forced page overflow, clipping
+					    the Add Customer button into an unlabelled black square. Constrain
+					    it here and keep the button from shrinking. */}
+					<ScopeSwitcher className="w-auto max-w-[220px]" />
 					{canInvite && (
 						<button
 							type="button"
 							onClick={() => setInviteOpen(true)}
-							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
+							className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 						>
 							<Plus className="h-3.5 w-3.5" />
 							Add Customer

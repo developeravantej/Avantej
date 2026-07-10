@@ -36,6 +36,23 @@ export function ReportsPage() {
 			? (Math.min(ytdDays(), 90) as 7 | 30 | 90)
 			: WINDOW_TO_DAYS[window];
 
+	// AVANTEJ-8: report windows are TRAILING windows ending TODAY, not calendar
+	// periods (this_week/this_month/this_year). The calendar mapping extended the
+	// KPI header into the future (e.g. 7D → "5 Jul – 12 Jul") and contradicted the
+	// "Last N days" chart. Pass an explicit custom range so the header ends today.
+	const kpiRange = useMemo(() => {
+		const to = new Date();
+		to.setHours(23, 59, 59, 999);
+		const from = new Date(to);
+		if (window === "YTD") {
+			from.setMonth(0, 1); // Jan 1 of the current year
+		} else {
+			from.setDate(to.getDate() - WINDOW_TO_DAYS[window]);
+		}
+		from.setHours(0, 0, 0, 0);
+		return { from: from.toISOString(), to: to.toISOString() };
+	}, [window]);
+
 	// ── KPIs ──
 	const {
 		data: kpis,
@@ -44,7 +61,13 @@ export function ReportsPage() {
 		refetch: refetchKpis,
 	} = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
+			input: {
+				organizationId: organizationId!,
+				period: "custom",
+				from: kpiRange.from,
+				to: kpiRange.to,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});

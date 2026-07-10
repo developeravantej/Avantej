@@ -1,5 +1,7 @@
+import { useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -67,6 +69,18 @@ export function SignupsDialog({
 	onRemoveEnrollment,
 	serviceNameById,
 }: SignupsDialogProps) {
+	// AVANTEJ-10: Radix <Select> mounts every <SelectItem> synchronously, and
+	// customerMembers can be thousands of clients — that froze the whole tab when
+	// the enroll dropdown opened. Filter by a search box and render at most 50.
+	const [enrollSearch, setEnrollSearch] = useState("");
+	const filteredCustomers = useMemo(() => {
+		const q = enrollSearch.trim().toLowerCase();
+		const base = q
+			? customerMembers.filter((m) => m.name.toLowerCase().includes(q))
+			: customerMembers;
+		return base.slice(0, 50);
+	}, [enrollSearch, customerMembers]);
+
 	return (
 		<Dialog
 			open={open}
@@ -99,6 +113,12 @@ export function SignupsDialog({
 								<Label htmlFor="enroll-client" className="text-xs">
 									Enroll customer
 								</Label>
+								<Input
+									placeholder="Search customer…"
+									value={enrollSearch}
+									onChange={(e) => setEnrollSearch(e.target.value)}
+									className="mb-1 h-8 text-xs"
+								/>
 								<Select
 									value={enrollClientUserId}
 									onValueChange={setEnrollClientUserId}
@@ -111,12 +131,24 @@ export function SignupsDialog({
 											<div className="px-2 py-1.5 text-xs text-muted-foreground">
 												No active customers — invite one first.
 											</div>
+										) : filteredCustomers.length === 0 ? (
+											<div className="px-2 py-1.5 text-xs text-muted-foreground">
+												No matches — refine your search.
+											</div>
 										) : (
-											customerMembers.map((m) => (
-												<SelectItem key={m.id} value={m.userId}>
-													{m.name}
-												</SelectItem>
-											))
+											<>
+												{filteredCustomers.map((m) => (
+													<SelectItem key={m.id} value={m.userId}>
+														{m.name}
+													</SelectItem>
+												))}
+												{customerMembers.length > filteredCustomers.length && (
+													<div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+														Showing {filteredCustomers.length} of{" "}
+														{customerMembers.length} — type to narrow.
+													</div>
+												)}
+											</>
 										)}
 									</SelectContent>
 								</Select>
