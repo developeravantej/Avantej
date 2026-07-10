@@ -37,6 +37,15 @@ export const hierarchyUpdateProcedures = {
 				invoicePrefix: z.string().nullable().optional(),
 				receiptPrefix: z.string().nullable().optional(),
 				branchTaxRateId: z.string().uuid().nullable().optional(),
+				// AVANTEJ-16: per-day weekly opening hours (branch-only). A null day
+				// means closed; an omitted key means "not set".
+				openingHours: z
+					.record(
+						z.string(),
+						z.object({ open: z.string(), close: z.string() }).nullable(),
+					)
+					.nullable()
+					.optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -97,6 +106,9 @@ export const hierarchyUpdateProcedures = {
 			if (input.branchTaxRateId !== undefined) {
 				updateParams.branchTaxRateId = input.branchTaxRateId;
 			}
+			if (input.openingHours !== undefined) {
+				updateParams.openingHours = input.openingHours;
+			}
 
 			// Capture pre-update state for GHL branch rename sync.
 			const preUpdateNode = await tenantDb.query.hierarchyNodes.findFirst({
@@ -120,6 +132,7 @@ export const hierarchyUpdateProcedures = {
 				let nodeInvoicePrefix: string | null = null;
 				let nodeReceiptPrefix: string | null = null;
 				let nodeBranchTaxRateId: string | null = null;
+				let nodeOpeningHours: unknown = null;
 				if (node.type === "branch") {
 					const details = await tenantDb.query.branchDetails.findFirst({
 						where: eq(branchDetails.nodeId, node.id),
@@ -132,6 +145,7 @@ export const hierarchyUpdateProcedures = {
 					nodeInvoicePrefix = details?.invoicePrefix ?? null;
 					nodeReceiptPrefix = details?.receiptPrefix ?? null;
 					nodeBranchTaxRateId = details?.branchTaxRateId ?? null;
+					nodeOpeningHours = details?.openingHours ?? null;
 				}
 
 				// Sync updates to control panel organization_branches registry
@@ -243,6 +257,7 @@ export const hierarchyUpdateProcedures = {
 					invoicePrefix: nodeInvoicePrefix,
 					receiptPrefix: nodeReceiptPrefix,
 					branchTaxRateId: nodeBranchTaxRateId,
+					openingHours: nodeOpeningHours,
 					createdAt: node.createdAt,
 					updatedAt: node.updatedAt,
 					ghlSync,

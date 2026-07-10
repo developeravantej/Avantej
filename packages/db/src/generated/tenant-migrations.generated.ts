@@ -5527,6 +5527,13 @@ ALTER TABLE "ghl_pending_contacts"
 ALTER TABLE "ghl_pending_contacts"
 	ADD COLUMN IF NOT EXISTS "onboarding_link_sent_by" text;
 ` },
+	{ hash: "0105_branch_opening_hours", sql: `-- AVANTEJ-16: per-branch weekly opening hours.
+-- Shape (jsonb): { "mon": { "open": "09:00", "close": "18:00" } | null, ... }
+-- null day = closed; absent key = not set. Nullable so existing branches are
+-- unchanged ("Opening hours not set" until an admin sets them).
+ALTER TABLE "branch_details"
+	ADD COLUMN IF NOT EXISTS "opening_hours" jsonb;
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =
