@@ -489,7 +489,7 @@ export function DataImportPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{history.map((job) => {
+									{history.map((job: (typeof history)[number]) => {
 										const s =
 											STATUS_STYLES[job.status] ?? STATUS_STYLES.pending;
 										return (

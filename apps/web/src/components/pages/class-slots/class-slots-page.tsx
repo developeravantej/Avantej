@@ -92,7 +92,10 @@ export function ClassSlotsPage() {
 	// only non-client members to the dialogs. Full `membersData` is kept for
 	// instructor-name resolution in the list rows below.
 	const instructorOptions = useMemo(
-		() => membersData.filter((m) => m.role !== "client"),
+		() =>
+			membersData.filter(
+				(m: (typeof membersData)[number]) => m.role !== "client",
+			),
 		[membersData],
 	);
 
