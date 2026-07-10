@@ -305,7 +305,15 @@ function createBetterAuth(c?: Context) {
 			},
 		},
 		trustedOrigins: [
-			getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+			// AVANTEJ-18: CORS_ORIGIN may hold multiple comma-separated web origins
+			// (see _rules/production-domains-and-auth.md). The Hono CORS layer splits
+			// on commas; better-auth must too, otherwise the whole comma-joined string
+			// is treated as one origin and every sign-in is rejected with
+			// "[Better Auth]: Invalid origin". Split + trim here.
+			...(getEnvVar("CORS_ORIGIN")
+				?.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean) ?? ["http://localhost:3001"]),
 			"http://localhost:4001", // E2E alt port
 			"http://localhost:3022", // E2E alt port (web dev on 3022)
 			"http://avantej.localhost:3022", // E2E tenant subdomain on 3022

@@ -113,9 +113,11 @@ export function ClassSlotsPage() {
 	// Mutations
 	// ---------------------------------------------------------------------------
 
-	const classSlotsKey = orpc.classSlots.list.queryOptions({
-		input: { organizationId: organizationId! },
-	}).queryKey;
+	// AVANTEJ-17: invalidate via the oRPC list key PREFIX so it matches the live
+	// query regardless of its input. The list query is keyed with
+	// `branchId: scopeNodeId`, but this invalidate key omitted branchId and so
+	// didn't match — the list went stale after create/update/cancel until a reload.
+	const classSlotsKey = orpc.classSlots.list.key();
 
 	const createMutation = useApiMutation({
 		mutationFn: (form: CreateFormState) => {
