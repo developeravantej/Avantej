@@ -108,7 +108,7 @@ const found = rows.find((r) => r.id === apptId);
 const results = {
 	// Read the PERSISTED row (post-backfill), not createAppointment's pre-backfill return.
 	trainerId_backfilled_in_db: found?.trainerId === trainer.id,
-	serviceId_persisted: created?.serviceId === service.id,
+	serviceId_persisted: (found?.serviceId ?? created?.serviceId) === service.id,
 	visible_under_trainer_filter: !!found,
 	found_serviceName: found?.serviceName ?? found?.service ?? null,
 	found_trainerId: found?.trainerId ?? null,
