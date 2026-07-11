@@ -29,6 +29,14 @@ const branch = arr
 	.sort((a, b) => (b.depth ?? 0) - (a.depth ?? 0))[0];
 console.log("branch", branch.id, branch.name);
 
+// Capture the branch's current hours so we can restore them (this proof mutates
+// a real singleton — never leave it changed).
+const priorDetails = await rpc("hierarchy/getBranchDetails", {
+	organizationId,
+	nodeId: branch.id,
+});
+const priorHours = priorDetails?.openingHours ?? null;
+
 const hours = {
 	monday: { open: "09:00", close: "18:00" },
 	tuesday: { open: "09:00", close: "18:00" },
@@ -79,6 +87,14 @@ console.log(
 		2,
 	),
 );
+// Restore the branch's original hours so this proof leaves no trace.
+await rpc("hierarchy/updateNode", {
+	organizationId,
+	nodeId: branch.id,
+	openingHours: priorHours,
+});
+console.log("restored prior openingHours");
+
 console.log(ok ? "PASS ✅" : "FAIL ❌");
 await api.dispose();
 process.exit(ok ? 0 : 1);

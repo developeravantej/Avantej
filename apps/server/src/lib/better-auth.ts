@@ -81,6 +81,22 @@ function getEnvVar(key: string): string | undefined {
 }
 
 /**
+ * AVANTEJ-18: build the web-origin list for better-auth `trustedOrigins` from a
+ * (possibly comma-separated) CORS_ORIGIN value. The Hono CORS layer splits on
+ * commas, so better-auth must too — otherwise a multi-origin CORS_ORIGIN is
+ * treated as one bogus origin and every sign-in is rejected with "Invalid
+ * origin". Falls back to the localhost default when the value is missing OR
+ * empty (an empty string previously slipped past `|| default` as a single "").
+ */
+export function corsOriginsFromEnv(raw: string | undefined): string[] {
+	const origins = (raw ?? "")
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	return origins.length > 0 ? origins : ["http://localhost:3001"];
+}
+
+/**
  * Create database client for Better-Auth (without schema - Better-Auth adds its own)
  * Better-Auth's drizzle adapter expects a client without a schema
  *
@@ -310,10 +326,7 @@ function createBetterAuth(c?: Context) {
 			// on commas; better-auth must too, otherwise the whole comma-joined string
 			// is treated as one origin and every sign-in is rejected with
 			// "[Better Auth]: Invalid origin". Split + trim here.
-			...(getEnvVar("CORS_ORIGIN")
-				?.split(",")
-				.map((s) => s.trim())
-				.filter(Boolean) ?? ["http://localhost:3001"]),
+			...corsOriginsFromEnv(getEnvVar("CORS_ORIGIN")),
 			"http://localhost:4001", // E2E alt port
 			"http://localhost:3022", // E2E alt port (web dev on 3022)
 			"http://avantej.localhost:3022", // E2E tenant subdomain on 3022

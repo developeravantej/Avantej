@@ -39,7 +39,7 @@ type MemberListItem = {
 };
 
 type PackageInstanceItem = {
-	packageInstanceId: string;
+	id: string;
 	serviceId: string;
 	creditsRemaining?: number;
 	isLocked?: boolean;
@@ -236,7 +236,7 @@ export function useAppointmentFormState({
 				!p.isLocked &&
 				(p.status ?? "active") === "active",
 		);
-		return match?.packageInstanceId ?? null;
+		return match?.id ?? null;
 	}, [clientPackageInstances, firstServiceId]);
 
 	const selectedClassSlotService = useMemo(

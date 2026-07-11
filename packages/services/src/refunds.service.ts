@@ -939,10 +939,16 @@ export async function processRefund(
 			if (order) {
 				// AVANTEJ-9: a fully-refunded sale keeps status='confirmed'/'completed'
 				// (a refund is NOT a cancellation), so detect "already fully refunded"
-				// from the refunded amount rather than the order status.
+				// from refund_status / refunded amount. Also block a genuinely cancelled
+				// sale (cancelSalesOrder sets status=cancelled + cancelledAmount but
+				// leaves refundedAmountCents=0) so a later refund cannot re-subtract.
 				if (
-					(order.refundedAmountCents ?? order.cancelledAmount ?? 0) >=
-					order.totalAmount
+					order.status === "cancelled" ||
+					order.refundStatus === "processed" ||
+					Math.max(
+						order.refundedAmountCents ?? 0,
+						order.cancelledAmount ?? 0,
+					) >= order.totalAmount
 				) {
 					throw {
 						code: "BAD_REQUEST",
