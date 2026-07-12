@@ -18,6 +18,7 @@ import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as PrintRouteImport } from './routes/_print'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OnboardingTokenRouteImport } from './routes/onboarding.$token'
@@ -34,6 +35,8 @@ import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_auth
 import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
+import { Route as PrintPrintReceiptInvoiceIdRouteImport } from './routes/_print/print/receipt.$invoiceId'
+import { Route as PrintPrintInvoiceIdRouteImport } from './routes/_print/print/invoice.$id'
 import { Route as AuthenticatedDashboardLayoutOverviewRouteImport } from './routes/_authenticated/dashboard/_layout/overview'
 import { Route as AuthenticatedDashboardLayoutInventoryOptionsRouteImport } from './routes/_authenticated/dashboard/_layout/inventory-options'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/index'
@@ -159,6 +162,10 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrintRoute = PrintRouteImport.update({
+  id: '/_print',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -244,6 +251,17 @@ const AuthenticatedDashboardLayoutIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
+const PrintPrintReceiptInvoiceIdRoute =
+  PrintPrintReceiptInvoiceIdRouteImport.update({
+    id: '/print/receipt/$invoiceId',
+    path: '/print/receipt/$invoiceId',
+    getParentRoute: () => PrintRoute,
+  } as any)
+const PrintPrintInvoiceIdRoute = PrintPrintInvoiceIdRouteImport.update({
+  id: '/print/invoice/$id',
+  path: '/print/invoice/$id',
+  getParentRoute: () => PrintRoute,
+} as any)
 const AuthenticatedDashboardLayoutOverviewRoute =
   AuthenticatedDashboardLayoutOverviewRouteImport.update({
     id: '/overview',
@@ -765,6 +783,8 @@ export interface FileRoutesByFullPath {
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
+  '/print/invoice/$id': typeof PrintPrintInvoiceIdRoute
+  '/print/receipt/$invoiceId': typeof PrintPrintReceiptInvoiceIdRoute
   '/dashboard/': typeof AuthenticatedDashboardLayoutIndexRoute
   '/dashboard/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/dashboard/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -869,6 +889,8 @@ export interface FileRoutesByTo {
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
+  '/print/invoice/$id': typeof PrintPrintInvoiceIdRoute
+  '/print/receipt/$invoiceId': typeof PrintPrintReceiptInvoiceIdRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
   '/dashboard/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/dashboard/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -951,6 +973,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_print': typeof PrintRouteWithChildren
   '/about': typeof AboutRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/contact': typeof ContactRoute
@@ -975,6 +998,8 @@ export interface FileRoutesById {
   '/_authenticated/user/view': typeof AuthenticatedUserViewRoute
   '/_authenticated/dashboard/_layout/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/_authenticated/dashboard/_layout/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
+  '/_print/print/invoice/$id': typeof PrintPrintInvoiceIdRoute
+  '/_print/print/receipt/$invoiceId': typeof PrintPrintReceiptInvoiceIdRoute
   '/_authenticated/dashboard/_layout/': typeof AuthenticatedDashboardLayoutIndexRoute
   '/_authenticated/dashboard/_layout/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/_authenticated/dashboard/_layout/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -1082,6 +1107,8 @@ export interface FileRouteTypes {
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard/overview'
+    | '/print/invoice/$id'
+    | '/print/receipt/$invoiceId'
     | '/dashboard/'
     | '/dashboard/access-control/invitations'
     | '/dashboard/access-control/permissions'
@@ -1186,6 +1213,8 @@ export interface FileRouteTypes {
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard/overview'
+    | '/print/invoice/$id'
+    | '/print/receipt/$invoiceId'
     | '/dashboard'
     | '/dashboard/access-control/invitations'
     | '/dashboard/access-control/permissions'
@@ -1267,6 +1296,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_print'
     | '/about'
     | '/accept-invitation'
     | '/contact'
@@ -1291,6 +1321,8 @@ export interface FileRouteTypes {
     | '/_authenticated/user/view'
     | '/_authenticated/dashboard/_layout/inventory-options'
     | '/_authenticated/dashboard/_layout/overview'
+    | '/_print/print/invoice/$id'
+    | '/_print/print/receipt/$invoiceId'
     | '/_authenticated/dashboard/_layout/'
     | '/_authenticated/dashboard/_layout/access-control/invitations'
     | '/_authenticated/dashboard/_layout/access-control/permissions'
@@ -1374,6 +1406,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  PrintRoute: typeof PrintRouteWithChildren
   AboutRoute: typeof AboutRoute
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   ContactRoute: typeof ContactRoute
@@ -1453,6 +1486,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_print': {
+      id: '/_print'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PrintRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -1566,6 +1606,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_print/print/receipt/$invoiceId': {
+      id: '/_print/print/receipt/$invoiceId'
+      path: '/print/receipt/$invoiceId'
+      fullPath: '/print/receipt/$invoiceId'
+      preLoaderRoute: typeof PrintPrintReceiptInvoiceIdRouteImport
+      parentRoute: typeof PrintRoute
+    }
+    '/_print/print/invoice/$id': {
+      id: '/_print/print/invoice/$id'
+      path: '/print/invoice/$id'
+      fullPath: '/print/invoice/$id'
+      preLoaderRoute: typeof PrintPrintInvoiceIdRouteImport
+      parentRoute: typeof PrintRoute
     }
     '/_authenticated/dashboard/_layout/overview': {
       id: '/_authenticated/dashboard/_layout/overview'
@@ -2415,9 +2469,22 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface PrintRouteChildren {
+  PrintPrintInvoiceIdRoute: typeof PrintPrintInvoiceIdRoute
+  PrintPrintReceiptInvoiceIdRoute: typeof PrintPrintReceiptInvoiceIdRoute
+}
+
+const PrintRouteChildren: PrintRouteChildren = {
+  PrintPrintInvoiceIdRoute: PrintPrintInvoiceIdRoute,
+  PrintPrintReceiptInvoiceIdRoute: PrintPrintReceiptInvoiceIdRoute,
+}
+
+const PrintRouteWithChildren = PrintRoute._addFileChildren(PrintRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  PrintRoute: PrintRouteWithChildren,
   AboutRoute: AboutRoute,
   AcceptInvitationRoute: AcceptInvitationRoute,
   ContactRoute: ContactRoute,
