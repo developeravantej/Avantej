@@ -6,6 +6,8 @@ import {
 	Layers,
 	MoreHorizontal,
 	Plus,
+	Search,
+	X,
 	Zap,
 	History,
 	Users,
@@ -57,6 +59,7 @@ import { CancelInstanceDialog } from "@/features/packages/components/cancel-inst
 import { ExtendInstanceDialog } from "@/features/packages/components/extend-instance-dialog";
 import { FreezeInstanceDialog } from "@/features/packages/components/freeze-instance-dialog";
 import { useUnfreezePackageInstance } from "@/features/packages/api";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice, rmToCents } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
@@ -92,7 +95,10 @@ interface PackageInstanceRow {
 
 interface CreateInstanceFormState {
 	serviceId: string;
+	/** Selected customer's control-panel user id (members.userId — Better-Auth nanoid, NOT a UUID). */
 	clientId: string;
+	/** Display name of the selected customer (UI only, not sent to the API). */
+	clientName: string;
 	source: "assigned" | "purchased";
 	creditsTotal: string;
 	totalPriceRm: string;
@@ -108,6 +114,7 @@ const today = new Date().toISOString().slice(0, 10);
 const EMPTY_FORM: CreateInstanceFormState = {
 	serviceId: "",
 	clientId: "",
+	clientName: "",
 	source: "assigned",
 	creditsTotal: "",
 	totalPriceRm: "",
@@ -183,6 +190,8 @@ export function PackageInstancesPage() {
 	);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [form, setForm] = useState<CreateInstanceFormState>(EMPTY_FORM);
+	const [clientSearch, setClientSearch] = useState("");
+	const debouncedClientSearch = useDebounce(clientSearch, 300);
 	const [historyInstanceId, setHistoryInstanceId] = useState<string | null>(
 		null,
 	);
@@ -261,6 +270,27 @@ export function PackageInstancesPage() {
 		return map;
 	}, [allServices]);
 
+	// Client picker: search the customer directory instead of pasting a raw id.
+	// The value stored in form.clientId is the customer's `userId` (members.userId,
+	// a Better-Auth NANOID — not a UUID), which is what packageInstances.create expects.
+	const { data: clientSearchData, isFetching: isSearchingClients } = useQuery({
+		queryKey: [
+			"package-instance-client-search",
+			organizationId,
+			debouncedClientSearch,
+		],
+		queryFn: () =>
+			client.customerDirectory.list({
+				organizationId: organizationId!,
+				search: debouncedClientSearch || undefined,
+				limit: 20,
+				offset: 0,
+			}),
+		enabled: createOpen && !!organizationId && !form.clientId,
+		staleTime: 30_000,
+	});
+	const clientOptions = clientSearchData?.rows ?? [];
+
 	const createMutation = useApiMutation({
 		mutationFn: (input: Parameters<typeof client.packageInstances.create>[0]) =>
 			client.packageInstances.create(input),
@@ -270,6 +300,7 @@ export function PackageInstancesPage() {
 		onSuccess: () => {
 			setCreateOpen(false);
 			setForm(EMPTY_FORM);
+			setClientSearch("");
 		},
 	});
 
@@ -356,7 +387,7 @@ export function PackageInstancesPage() {
 			return;
 		}
 		if (!form.clientId.trim()) {
-			toast.error("Client ID is required.");
+			toast.error("Please select a client.");
 			return;
 		}
 		const creditsTotal = parseInt(form.creditsTotal, 10);
@@ -387,14 +418,13 @@ export function PackageInstancesPage() {
 			clientId: form.clientId.trim(),
 			source: form.source,
 			creditsTotal,
-			creditsRemaining: creditsTotal,
 			startsAt: new Date(`${form.startsAt}T00:00:00.000Z`).toISOString(),
 			expiresAt: new Date(`${form.expiresAt}T23:59:59.000Z`).toISOString(),
 			totalPrice: totalPriceCents,
 			paymentStatus: form.paymentStatus,
 			paymentPlanType: form.paymentPlanType || undefined,
 			remark: form.remark.trim() || undefined,
-		} as any);
+		});
 	}
 
 	const data: PackageInstanceRow[] = (apiData as any[]).map((item: any) => ({
@@ -758,7 +788,10 @@ export function PackageInstancesPage() {
 				open={createOpen}
 				onOpenChange={(open) => {
 					setCreateOpen(open);
-					if (!open) setForm(EMPTY_FORM);
+					if (!open) {
+						setForm(EMPTY_FORM);
+						setClientSearch("");
+					}
 				}}
 			>
 				<DialogContent
@@ -804,22 +837,88 @@ export function PackageInstancesPage() {
 								</Select>
 							</div>
 
-							{/* Client ID */}
+							{/* Client picker */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="inst-client">
-									Client ID <span className="text-rose-600">*</span>
+									Client <span className="text-rose-600">*</span>
 								</Label>
-								<Input
-									id="inst-client"
-									placeholder="Client user UUID"
-									value={form.clientId}
-									onChange={(e) =>
-										setForm((f) => ({ ...f, clientId: e.target.value }))
-									}
-									className="font-mono text-sm"
-								/>
+								{form.clientId ? (
+									<div className="flex items-center justify-between gap-2 rounded-md border border-[#e5e5e5] bg-[#fafafa] px-3 py-2">
+										<span className="truncate text-sm font-medium">
+											{form.clientName || form.clientId}
+										</span>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="size-6 shrink-0 text-[#737373] hover:text-[#0a0a0a]"
+											aria-label="Clear client selection"
+											onClick={() => {
+												setForm((f) => ({
+													...f,
+													clientId: "",
+													clientName: "",
+												}));
+												setClientSearch("");
+											}}
+										>
+											<X className="size-3.5" />
+										</Button>
+									</div>
+								) : (
+									<>
+										<div className="relative">
+											<Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#737373]" />
+											<Input
+												id="inst-client"
+												placeholder="Search customers by name or email…"
+												value={clientSearch}
+												onChange={(e) => setClientSearch(e.target.value)}
+												className="pl-9"
+												autoComplete="off"
+											/>
+										</div>
+										<div className="max-h-44 overflow-y-auto rounded-md border border-[#e5e5e5]">
+											{isSearchingClients && clientOptions.length === 0 ? (
+												<p className="px-3 py-3 text-xs text-[#737373]">
+													Searching…
+												</p>
+											) : clientOptions.length === 0 ? (
+												<p className="px-3 py-3 text-xs text-[#737373]">
+													No customers found.
+												</p>
+											) : (
+												<ul className="divide-y divide-[#f3f3f3]">
+													{clientOptions.map((c) => (
+														<li key={c.memberId}>
+															<button
+																type="button"
+																className="flex w-full flex-col px-3 py-2 text-left transition hover:bg-[#f3f3f3]"
+																onClick={() =>
+																	setForm((f) => ({
+																		...f,
+																		// members.userId — the id packageInstances.create expects
+																		clientId: c.userId,
+																		clientName: c.name,
+																	}))
+																}
+															>
+																<span className="text-sm font-medium">
+																	{c.name}
+																</span>
+																<span className="text-xs text-[#737373]">
+																	{c.email}
+																</span>
+															</button>
+														</li>
+													))}
+												</ul>
+											)}
+										</div>
+									</>
+								)}
 								<p className="text-xs text-[#737373]">
-									Enter the client's user ID (UUID).
+									Search the customer directory and pick the client.
 								</p>
 							</div>
 
@@ -1005,6 +1104,7 @@ export function PackageInstancesPage() {
 								onClick={() => {
 									setCreateOpen(false);
 									setForm(EMPTY_FORM);
+									setClientSearch("");
 								}}
 								disabled={createMutation.isPending}
 							>

@@ -1,5 +1,4 @@
-import { Search, MoreVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +10,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { RoleResponse } from "./types";
 
 interface MembersFiltersBarProps {
@@ -111,29 +103,6 @@ export function MembersFiltersBar({
 					{selectedCount > 0 && (
 						<div className="flex items-center gap-2">
 							<Badge variant="secondary">{selectedCount} selected</Badge>
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline" size="sm">
-										<MoreVertical className="size-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									<DropdownMenuItem disabled title="Bulk actions coming soon">
-										Bulk Assign Role
-									</DropdownMenuItem>
-									<DropdownMenuItem disabled title="Bulk actions coming soon">
-										Bulk Remove Role
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										disabled
-										title="Bulk actions coming soon"
-										className="text-rose-600"
-									>
-										Deactivate Selected
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
 						</div>
 					)}
 				</div>

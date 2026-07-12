@@ -385,7 +385,14 @@ function SidebarUserFooter() {
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
-					<Link to="/customers" className="flex items-center gap-2">
+					<Link
+						to="/dashboard/customers/v2/view"
+						search={(_prev) => ({
+							customer: undefined,
+							showDeleted: undefined,
+						})}
+						className="flex items-center gap-2"
+					>
 						<User className="size-4" />
 						<span>Personal Details</span>
 					</Link>

@@ -23,6 +23,53 @@ import { SignupsDialog } from "./SignupsDialog";
 import { CancelClassSlotDialog } from "./CancelClassSlotDialog";
 
 // ---------------------------------------------------------------------------
+// KPI computation (client-side, over LOADED rows only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes the KPI tile values from the class slots currently loaded on the
+ * client. NOTE: the list query returns a bounded page, so these figures cover
+ * loaded rows only — they are NOT server-side aggregates across all slots.
+ * The tile sublabels state this explicitly ("loaded slots").
+ */
+export function computeClassSlotKpis(
+	classSlots: Array<{
+		isCancelled: boolean;
+		capacity: number;
+		spotsBooked: number;
+		waitlistCount?: number | null;
+		pricePerSpotCents?: number | null;
+	}>,
+) {
+	const activeSlots = classSlots.filter((s) => !s.isCancelled);
+	const totalSlots = activeSlots.length;
+
+	const avgFillRate =
+		activeSlots.length > 0
+			? Math.round(
+					(activeSlots.reduce(
+						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
+						0,
+					) /
+						activeSlots.length) *
+						100,
+				)
+			: 0;
+
+	const totalWaitlisted = activeSlots.reduce(
+		(sum, s) => sum + (s.waitlistCount ?? 0),
+		0,
+	);
+
+	const projectedRevenueCents = activeSlots.reduce(
+		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
+		0,
+	);
+
+	return { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents };
+}
+
+// ---------------------------------------------------------------------------
 // Route component
 // ---------------------------------------------------------------------------
 
@@ -279,33 +326,11 @@ export function ClassSlotsPage() {
 	};
 
 	// ---------------------------------------------------------------------------
-	// KPI computation (client-side)
+	// KPI computation (client-side, loaded rows only — see computeClassSlotKpis)
 	// ---------------------------------------------------------------------------
 
-	const activeSlots = classSlots.filter((s) => !s.isCancelled);
-	const totalSlots = activeSlots.length;
-
-	const avgFillRate =
-		activeSlots.length > 0
-			? Math.round(
-					(activeSlots.reduce(
-						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
-						0,
-					) /
-						activeSlots.length) *
-						100,
-				)
-			: 0;
-
-	const totalWaitlisted = activeSlots.reduce(
-		(sum, s) => sum + (s.waitlistCount ?? 0),
-		0,
-	);
-
-	const projectedRevenueCents = activeSlots.reduce(
-		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
-		0,
-	);
+	const { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents } =
+		computeClassSlotKpis(classSlots);
 
 	// ---------------------------------------------------------------------------
 	// Filtered flat slot list
@@ -391,7 +416,7 @@ export function ClassSlotsPage() {
 					<KpiTile
 						label="Total Slots"
 						value={<span className="font-mono tabular-nums">{totalSlots}</span>}
-						sub="active slots"
+						sub="active slots (loaded)"
 					/>
 					<KpiTile
 						label="Avg Fill Rate"
@@ -402,14 +427,14 @@ export function ClassSlotsPage() {
 							</>
 						}
 						fillPct={avgFillRate}
-						sub="across active slots"
+						sub="of loaded slots"
 					/>
 					<KpiTile
 						label="Waitlisted"
 						value={
 							<span className="font-mono tabular-nums">{totalWaitlisted}</span>
 						}
-						sub="across active slots"
+						sub="of loaded slots"
 						accent={totalWaitlisted > 0 ? "amber" : "default"}
 					/>
 					<KpiTile
@@ -419,7 +444,7 @@ export function ClassSlotsPage() {
 								{formatPrice(projectedRevenueCents)}
 							</span>
 						}
-						sub="capacity × price per spot"
+						sub="capacity × price, loaded slots"
 					/>
 				</div>
 

@@ -39,7 +39,7 @@ type InstallmentPlan = Awaited<
 	ReturnType<typeof client.installmentPlans.list>
 >[number];
 
-// listMemberships uses an `as unknown as` cast in the predecessor page; mirror it.
+// Filter union accepted by packageInstances.listMemberships (typed end-to-end).
 type MembershipFilter =
 	| "active"
 	| "expiring_7d"
@@ -275,7 +275,16 @@ export function PackagesTab({
 	accessibleNodeIds,
 	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: PackagesTabProps) {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
+
+	// Write access for the row drawer. The drawer's write actions are enforced
+	// server-side by exactly two permissions: lifecycle unlock/freeze requires
+	// package_management:update (lifecycle.procedures.ts) and confirm-payment /
+	// agreement / payment-proof require service_management:update. Show write
+	// controls only when the user holds at least one of them.
+	const canWrite =
+		hasPermission("package_management:update") ||
+		hasPermission("service_management:update");
 
 	// ── Filter state ─────────────────────────────────────────────────────────────
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -395,17 +404,7 @@ export function PackagesTab({
 
 			if (isMembershipFilter) {
 				// Branch 2: packageInstances.listMemberships (hierarchy-scoped)
-				const result = await (
-					client.packageInstances as unknown as {
-						listMemberships: (input: {
-							organizationId: string;
-							filter: MembershipFilter;
-							branchId?: string;
-							limit: number;
-							offset: number;
-						}) => Promise<{ rows: MembershipRow[]; total: number }>;
-					}
-				).listMemberships({
+				const result = await client.packageInstances.listMemberships({
 					organizationId,
 					filter: statusFilter as MembershipFilter,
 					branchId: branchId || undefined,
@@ -576,7 +575,7 @@ export function PackagesTab({
 				}}
 				row={selectedRow}
 				organizationId={organizationId}
-				canWrite={true}
+				canWrite={canWrite}
 			/>
 		</>
 	);

@@ -3,7 +3,7 @@ import { AppointmentCalendar } from "@/components/calendar/appointment";
 import { requirePermission } from "@/lib/route-guards";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useMemo } from "react";
 import {
 	mapApiAppointmentToCalendar,
@@ -37,16 +37,14 @@ function AppointmentViewComponent() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["appointments", organizationId, startFrom, startTo],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.appointments.list({
-				organizationId,
+		...orpc.appointments.list.queryOptions({
+			input: {
+				organizationId: organizationId!,
 				startFrom,
 				startTo,
 				limit: 200,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
 	});
