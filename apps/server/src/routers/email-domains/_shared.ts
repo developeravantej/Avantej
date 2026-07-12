@@ -15,6 +15,32 @@ import { writeAudit } from "@avantej-core/services/audit-log.service";
 
 export const LOCAL_PART_REGEX = /^[a-z0-9._-]{1,64}$/i;
 
+/**
+ * Extract a PostgreSQL error `code` (e.g. "23505" unique-violation) from an
+ * error that may be wrapped. Drizzle throws `DrizzleQueryError`, whose generic
+ * message ("Failed query: …") does NOT contain the pg detail — the real pg
+ * error (with `.code`/`.message`) lives on `.cause`, sometimes nested. Walk the
+ * cause chain and return the first string `code` found. Prefer matching this
+ * over brittle `err.message.includes("duplicate key")` string checks, which
+ * silently miss the wrapped case and let the raw error surface as a 500.
+ */
+export function getPgErrorCode(err: unknown): string | undefined {
+	let current: unknown = err;
+	// Bound the walk so a self-referential cause chain can't loop forever.
+	for (let depth = 0; current != null && depth < 5; depth++) {
+		if (typeof current === "object") {
+			const code = (current as { code?: unknown }).code;
+			if (typeof code === "string" && code.length > 0) {
+				return code;
+			}
+			current = (current as { cause?: unknown }).cause;
+		} else {
+			break;
+		}
+	}
+	return undefined;
+}
+
 export type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
 export function getControlPanelDb(context: {

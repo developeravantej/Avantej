@@ -161,15 +161,13 @@ test.describe("email-domains", () => {
 			),
 		).toBe(true);
 
-		// Same local-part twice is rejected. Intended contract is 409 CONFLICT,
-		// but the router's duplicate-key mapping misses drizzle's wrapped error
-		// (DrizzleQueryError.cause) and currently surfaces 500 — accept both;
-		// tighten to [409] once the mapping is fixed.
+		// Same local-part twice is rejected with 409 CONFLICT. The router maps
+		// the pg unique-violation (23505) off drizzle's wrapped error cause.
 		await expectRejected(
 			page.request,
 			"emailDomains/addAlias",
 			{ organizationId, emailDomainId: domainId, localPart: "support" },
-			[409, 500],
+			[409],
 		);
 
 		const removed = await rpc(page.request, "emailDomains/removeAlias", {
@@ -286,16 +284,14 @@ test.describe("email-domains", () => {
 			),
 		).toBe(true);
 
-		// Duplicate local-part is rejected. Intended contract is 409 CONFLICT,
-		// but the router's duplicate-key detection string-matches err.message
-		// while drizzle wraps the pg error in DrizzleQueryError.cause — so the
-		// live server currently surfaces 500. Assert the rejection either way;
-		// tighten to [409] once the mapping is fixed.
+		// Duplicate local-part is rejected with 409 CONFLICT. The router maps the
+		// pg unique-violation (23505) off drizzle's wrapped error cause, rather
+		// than string-matching err.message (which misses the wrapped case).
 		await expectRejected(
 			page.request,
 			"emailDomains/addAlias",
 			{ organizationId, emailDomainId: domain.id, localPart },
-			[409, 500],
+			[409],
 		);
 
 		const removed = await rpc(page.request, "emailDomains/removeAlias", {
