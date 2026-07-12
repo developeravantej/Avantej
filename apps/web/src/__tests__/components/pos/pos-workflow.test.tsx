@@ -133,10 +133,12 @@ async function renderWithServiceItem(user: ReturnType<typeof userEvent.setup>) {
 	// Wait for the prefill effect to seat the customer and land on the Items step.
 	await screen.findByTestId("pos-add-service-button");
 
-	// Add a Service line, then pick the service from the combobox.
+	// Add a Service line, then pick the service from the combobox. The option
+	// label carries a price qualifier ("Body Massage 60min — RM 300.00"), so
+	// match on the name prefix rather than the exact string.
 	await user.click(screen.getByTestId("pos-add-service-button"));
 	const serviceTrigger = await screen.findByRole("combobox");
-	await selectOption(user, serviceTrigger, SERVICE.name);
+	await selectOption(user, serviceTrigger, new RegExp(SERVICE.name));
 
 	// Price resolves async via resolvePrice — wait for it to land in the item row.
 	await waitFor(() => {

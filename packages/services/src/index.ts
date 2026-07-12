@@ -314,6 +314,10 @@ export {
 } from "./invitation.service";
 // Invoice services
 export * from "./invoice.service";
+// Branded print documents: receipt issuance + tenant billing identity
+// (zplan/2026-07-02_invoice-receipt-print)
+export * from "./receipt.service";
+export * from "./billing-profile.service";
 // Package agreement + e-signature (UAT §2)
 export * from "./agreement.service";
 // Offline payment-proof metadata (UAT §7)

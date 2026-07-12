@@ -124,6 +124,11 @@ export * from "./goods-receipt-items";
 export * from "./supplier-invoices";
 // #endregion
 
+// #region Branded print documents — receipts + billing identity (mig 0100)
+export * from "./billing-profile";
+export * from "./receipts";
+// #endregion
+
 // #region Agent 2.10 — promotion FK + waitlist polymorphic + announcement scopes (audit §8.5)
 export * from "./announcement-scopes";
 // #endregion

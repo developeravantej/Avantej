@@ -31,6 +31,12 @@ vi.mock("@tanstack/react-router", () => ({
 	},
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
+	// ReportsIndexPage reads tab/from/to/taxBasis via getRouteApi — empty
+	// search falls back to the default (performance) tab.
+	getRouteApi: () => ({
+		useSearch: () => ({}),
+		useNavigate: () => vi.fn(),
+	}),
 }));
 vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
