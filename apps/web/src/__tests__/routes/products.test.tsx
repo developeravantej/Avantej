@@ -9,7 +9,7 @@ vi.mock("@tanstack/react-router", () => ({
 		ProductsViewPage = opts.component;
 		return {
 			component: opts.component,
-			useSearch: vi.fn().mockReturnValue({ tab: "products" }),
+			useSearch: vi.fn().mockReturnValue({ tab: "catalog" }),
 			useNavigate: vi.fn().mockReturnValue(vi.fn()),
 		};
 	},
@@ -99,16 +99,14 @@ describe("Products page", () => {
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
+			// Catalog tab renders the Add Product action even with no rows.
 			expect(
-				screen.getByRole("heading", { name: "Products" }),
+				screen.getByRole("button", { name: /add product/i }),
 			).toBeInTheDocument();
 		});
 	});
 
-	// NOTE: The Products page is a "Coming Soon" stub — client.products.list is not
-	// called and no product data is rendered. These tests are skipped until the
-	// module is implemented.
-	test.skip("calls client.products.list on mount", async () => {
+	test("calls client.products.list on mount", async () => {
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
@@ -116,7 +114,16 @@ describe("Products page", () => {
 		});
 	});
 
-	test.skip("shows product data in the table", async () => {
+	test("shows product data in the table", async () => {
+		mockClient.products.list.mockResolvedValue([
+			{
+				id: "p-1",
+				sku: "SKU-1",
+				name: "Widget",
+				price: 2550,
+				status: "active",
+			},
+		]);
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
@@ -124,7 +131,16 @@ describe("Products page", () => {
 		});
 	});
 
-	test.skip("formats price as MYR currency (2550 cents = RM 25.50)", async () => {
+	test("formats price as MYR currency (2550 cents = RM 25.50)", async () => {
+		mockClient.products.list.mockResolvedValue([
+			{
+				id: "p-1",
+				sku: "SKU-1",
+				name: "Widget",
+				price: 2550,
+				status: "active",
+			},
+		]);
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
