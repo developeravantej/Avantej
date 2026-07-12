@@ -36,9 +36,19 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../../../fixtures/db";
-import { loginAsAdmin, signUpUser } from "../../../fixtures/auth";
+import {
+	cleanupSeededTestUsers,
+	loginAsAdmin,
+	signUpUser,
+} from "../../../fixtures/auth";
 
 test.use({ video: "on" });
+
+test.afterAll(async () => {
+	// Revoke platform-admin grants + delete throwaway @test.local users this
+	// spec seeded, even if an assertion failed mid-test (see fixtures/auth.ts).
+	await cleanupSeededTestUsers();
+});
 
 const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
 
