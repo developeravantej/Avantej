@@ -40,7 +40,8 @@ export const checkInsRouter = {
 				.object({
 					organizationId: z.string().uuid(),
 					clientType: z.enum(["member", "walk_in"]),
-					clientId: z.string().uuid().optional(),
+					// members.userId is a Better-Auth nanoid, never a UUID
+					clientId: z.string().min(1).optional(),
 					clientDisplayName: z.string().trim().max(120).optional(),
 					branchId: z.string().uuid(),
 					appointmentClientId: z.string().uuid().optional(),
