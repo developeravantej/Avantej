@@ -64,16 +64,15 @@ import { ManualAdjustmentDialog } from "@/components/pages/commissions/manual-ad
 // Fixtures
 // ---------------------------------------------------------------------------
 
-// NOTE: the dialog's zod schema validates staffId with .uuid(), so the fixture
-// staff userIds must be UUIDs for the form to submit. (Real Better-Auth user
-// ids are nanoids — see memory `members.userId is not a UUID` — the server
-// procedure accepts z.string().min(1).)
-// Version-4/variant-compliant UUIDs — zod's .uuid() rejects arbitrary hex.
-const STAFF_UUID = "11111111-1111-4111-8111-111111111111";
+// staffId is members.userId — a Better-Auth NANOID, never a UUID (see memory
+// `members.userId is not a UUID`). The dialog's schema mirrors the server
+// (z.string().min(1)), so a nanoid staff id must pass client validation and
+// reach the mutation. This fixture uses a nanoid on purpose to guard that.
+const STAFF_ID = "aB3xY7kQ9mN2pL5rT8wZ1cV4"; // nanoid — would fail z.string().uuid()
 const TARGET_UUID = "99999999-9999-4999-8999-999999999999";
 
 const staffList = [
-	{ id: "member-row-1", userId: STAFF_UUID, name: "Ahmad Firdaus" },
+	{ id: "member-row-1", userId: STAFF_ID, name: "Ahmad Firdaus" },
 ];
 
 function renderDialog(onOpenChange = vi.fn()) {
@@ -100,7 +99,7 @@ async function fillForm({
 	await screen.findByRole("option", { name: "Ahmad Firdaus" });
 	// First mock select = staffId, second = targetType (defaults to salesOrderId).
 	const selects = screen.getAllByTestId("mock-select");
-	fireEvent.change(selects[0], { target: { value: STAFF_UUID } });
+	fireEvent.change(selects[0], { target: { value: STAFF_ID } });
 
 	fireEvent.change(screen.getByLabelText(/Amount \(RM\)/i), {
 		target: { value: amount },
@@ -144,8 +143,9 @@ describe("ManualAdjustmentDialog — payload correctness", () => {
 			mockClient.commissionSplits.createManualAdjustment.mock.calls[0][0];
 
 		expect(arg.organizationId).toBe("org-1");
-		expect(arg.staffId).toBe(STAFF_UUID);
-		// Integer cents — never a float RM value.
+		// A nanoid staffId passes client validation and reaches the server.
+		expect(arg.staffId).toBe(STAFF_ID);
+		// Integer cents — never a float RM value. Bonus (default) → positive.
 		expect(arg.amountCents).toBe(12345);
 		expect(Number.isInteger(arg.amountCents)).toBe(true);
 		expect(arg.note).toBe("Bonus for June");
@@ -193,7 +193,7 @@ describe("ManualAdjustmentDialog — payload correctness", () => {
 		fireEvent.click(screen.getByRole("button", { name: /Create Adjustment/i }));
 
 		expect(
-			await screen.findByText("Enter a valid non-zero amount"),
+			await screen.findByText("Enter a valid amount greater than zero"),
 		).toBeInTheDocument();
 		expect(
 			mockClient.commissionSplits.createManualAdjustment,
@@ -228,21 +228,72 @@ describe("ManualAdjustmentDialog — payload correctness", () => {
 // ---------------------------------------------------------------------------
 
 describe("ManualAdjustmentDialog — sign handling (clawback)", () => {
-	// Characterization: the dialog promises "negative amount for a clawback"
-	// and its zod schema accepts negatives, but the conversion helper it uses
-	// (`rmToCents`) throws on any negative value. Until that is fixed, a
-	// negative adjustment can never reach the server from this dialog. These
-	// tests pin BOTH facts so a fix (or a regression) flips them loudly.
-	// NOTE: driving the UI with a negative amount is deliberately NOT done here:
-	// the throw escapes as an unhandled rejection (form.handleSubmit is not
-	// awaited by the component), which would poison the whole vitest run. The
-	// pure-function characterization below pins the same fact.
-	it("rmToCents converts positive RM to integer cents but throws on negatives", () => {
-		expect(rmToCents(123.45)).toBe(12345);
-		expect(Number.isInteger(rmToCents(0.1))).toBe(true);
-		// The documented clawback path is currently impossible: the dialog's
-		// mutationFn pipes the signed RM amount through rmToCents, which rejects
-		// every negative value — so a clawback can never reach the server.
+	// The dialog entered a POSITIVE magnitude and applies the sign from the
+	// Bonus/Clawback toggle: rmToCents (which rejects negatives) is fed the
+	// magnitude, and the result is negated for a clawback. So the server
+	// receives a negative integer-cents payload — the previously-impossible path.
+
+	it("submits a clawback as NEGATIVE integer cents", async () => {
+		renderDialog();
+
+		await fillForm({ amount: "50.00", note: "Overpayment clawback" });
+		// Flip to Clawback before submitting.
+		fireEvent.click(screen.getByRole("radio", { name: /Clawback/i }));
+		fireEvent.click(screen.getByRole("button", { name: /Create Adjustment/i }));
+
+		await waitFor(() =>
+			expect(
+				mockClient.commissionSplits.createManualAdjustment,
+			).toHaveBeenCalledTimes(1),
+		);
+		const arg =
+			mockClient.commissionSplits.createManualAdjustment.mock.calls[0][0];
+
+		// 50.00 RM entered as a positive magnitude → −5000 signed cents.
+		expect(arg.amountCents).toBe(-5000);
+		expect(arg.amountCents).toBeLessThan(0);
+		expect(Number.isInteger(arg.amountCents)).toBe(true);
+		expect(arg.staffId).toBe(STAFF_ID);
+	});
+
+	it("submits a bonus as POSITIVE integer cents (default direction)", async () => {
+		renderDialog();
+
+		await fillForm({ amount: "50.00", note: "June bonus" });
+		fireEvent.click(screen.getByRole("button", { name: /Create Adjustment/i }));
+
+		await waitFor(() =>
+			expect(
+				mockClient.commissionSplits.createManualAdjustment,
+			).toHaveBeenCalledTimes(1),
+		);
+		const arg =
+			mockClient.commissionSplits.createManualAdjustment.mock.calls[0][0];
+		expect(arg.amountCents).toBe(5000);
+		expect(arg.amountCents).toBeGreaterThan(0);
+	});
+
+	it("shows a signed preview reflecting the chosen direction", async () => {
+		renderDialog();
+
+		await fillForm({ amount: "50.00", note: "preview" });
+		expect(await screen.findByTestId("amount-preview")).toHaveTextContent(
+			"+RM 50.00",
+		);
+
+		fireEvent.click(screen.getByRole("radio", { name: /Clawback/i }));
+		await waitFor(() =>
+			expect(screen.getByTestId("amount-preview")).toHaveTextContent(
+				"−RM 50.00",
+			),
+		);
+	});
+
+	// Sanity guard on the shared helper: rmToCents still rejects negatives (its
+	// non-negative contract is correct for prices), which is exactly why the
+	// dialog feeds it the positive magnitude and negates afterwards.
+	it("rmToCents keeps its non-negative contract (dialog negates, not rmToCents)", () => {
+		expect(rmToCents(50)).toBe(5000);
 		expect(() => rmToCents(-50)).toThrow("Invalid amount");
 	});
 });
