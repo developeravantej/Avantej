@@ -43,6 +43,13 @@ jobs:
           # organizations table, which is encrypted at rest — decryption
           # needs the same key the server uses.
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          # Preferred schema-reference tenant. When set, gen-erd uses it
+          # directly instead of discovering a decryptable org — required in
+          # CI, where the control-panel DB holds only undecryptable throwaway
+          # e2e test orgs. Point this secret at a stable, migrated tenant Neon
+          # branch (read-only creds suffice). Until the secret exists it is
+          # empty and gen-erd falls back to org discovery (current behaviour).
+          TENANT_DATABASE_URL: ${{ secrets.DRIFT_CHECK_TENANT_DATABASE_URL }}
         run: bun scripts/gen-erd.ts
 
       - name: Check drift (fails on any drift section)

@@ -129,6 +129,162 @@ export async function listClassSlots(
 	return rows;
 }
 
+export type ClassSlotKpis = {
+	totalSlots: number;
+	avgFillRate: number;
+	totalWaitlisted: number;
+	projectedRevenueCents: number;
+};
+
+/**
+ * Canonical KPI reduction over class-slot rows. This is the single source of
+ * truth for the KPI math and is byte-for-byte identical to the web client's
+ * `computeClassSlotKpis` so the tiles stay consistent whether they are computed
+ * client-side (over a loaded page) or server-side (over the full filter set).
+ *
+ * `getClassSlotKpis` performs this exact same computation in SQL for
+ * efficiency (it must aggregate over ALL matching slots, not a page); this pure
+ * form is the reference implementation the unit tests pin the semantics to.
+ *
+ * - Cancelled slots are excluded from every KPI.
+ * - Fill rate is the mean of per-slot booked/capacity ratios (capacity 0 → 0%),
+ *   as a whole percent.
+ * - Revenue is capacity × price-per-spot (integer cents), summed.
+ */
+export function aggregateClassSlotKpis(
+	slots: Array<{
+		isCancelled: boolean;
+		capacity: number;
+		spotsBooked: number;
+		waitlistCount?: number | null;
+		pricePerSpotCents?: number | null;
+	}>,
+): ClassSlotKpis {
+	const activeSlots = slots.filter((s) => !s.isCancelled);
+	const totalSlots = activeSlots.length;
+
+	const avgFillRate =
+		activeSlots.length > 0
+			? Math.round(
+					(activeSlots.reduce(
+						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
+						0,
+					) /
+						activeSlots.length) *
+						100,
+				)
+			: 0;
+
+	const totalWaitlisted = activeSlots.reduce(
+		(sum, s) => sum + (s.waitlistCount ?? 0),
+		0,
+	);
+
+	const projectedRevenueCents = activeSlots.reduce(
+		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
+		0,
+	);
+
+	return { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents };
+}
+
+/**
+ * Server-side class-slot KPI aggregation over ALL slots matching the same
+ * filters the list uses (branch scope + date range + service). Computed in SQL
+ * so we never pull every slot into JS. Mirrors `aggregateClassSlotKpis`:
+ * cancelled slots excluded, fill rate = mean per-slot booked/capacity, revenue
+ * = Σ capacity × price (cents), waitlist = Σ active (waiting/notified) entries.
+ *
+ * Respects branch RBAC identically to `listClassSlots`: `resolveScopeNodeIds`
+ * throws FORBIDDEN for an out-of-scope node and clamps to `accessibleNodeIds`.
+ */
+export async function getClassSlotKpis(
+	tenantDb: TenantDb,
+	params: {
+		serviceId?: string;
+		branchId?: string;
+		from?: Date;
+		to?: Date;
+		isAvailable?: boolean;
+		accessibleNodeIds?: string[];
+	} = {},
+): Promise<ClassSlotKpis> {
+	const { serviceId, branchId, from, to, isAvailable, accessibleNodeIds } =
+		params;
+
+	// Cancelled slots are excluded from every KPI (matches aggregateClassSlotKpis).
+	const conditions = [eq(classSlots.isCancelled, false)];
+
+	if (serviceId) {
+		conditions.push(eq(classSlots.serviceId, serviceId));
+	}
+
+	// Same subtree expansion + RBAC clamp as listClassSlots (throws FORBIDDEN for
+	// an out-of-scope node, result ⊆ accessibleNodeIds).
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds ?? [],
+	);
+	if (scopeIds.length > 0) {
+		conditions.push(inArray(classSlots.branchId, scopeIds));
+	}
+
+	if (from) {
+		conditions.push(gte(classSlots.date, from));
+	}
+
+	if (to) {
+		conditions.push(lte(classSlots.date, to));
+	}
+
+	if (isAvailable !== undefined) {
+		conditions.push(eq(classSlots.isAvailable, isAvailable));
+	}
+
+	if (accessibleNodeIds && accessibleNodeIds.length > 0) {
+		conditions.push(inArray(classSlots.branchId, accessibleNodeIds));
+	}
+
+	// Per-slot projection first (GROUP BY the slot PK) so the waitlist leftJoin
+	// can't multiply capacity/price sums, then aggregate over the slots.
+	const perSlot = tenantDb
+		.select({
+			capacity: classSlots.capacity,
+			spotsBooked: classSlots.spotsBooked,
+			waitlistCount:
+				sql<number>`COALESCE(COUNT(DISTINCT ${waitlistEntries.id}) FILTER (WHERE ${waitlistEntries.status} IN ('waiting', 'notified')), 0)`.as(
+					"waitlist_count",
+				),
+			pricePerSpotCents: sql<number>`COALESCE(MAX(${services.price}), 0)`.as(
+				"price_per_spot_cents",
+			),
+		})
+		.from(classSlots)
+		.leftJoin(waitlistEntries, eq(waitlistEntries.classSlotId, classSlots.id))
+		.leftJoin(services, eq(services.id, classSlots.serviceId))
+		.where(and(...conditions))
+		.groupBy(classSlots.id)
+		.as("per_slot");
+
+	const [agg] = await tenantDb
+		.select({
+			totalSlots: sql<number>`COUNT(*)::int`,
+			avgFillRate: sql<number>`COALESCE(ROUND(AVG(CASE WHEN ${perSlot.capacity} > 0 THEN ${perSlot.spotsBooked}::numeric / ${perSlot.capacity} ELSE 0 END) * 100), 0)::int`,
+			totalWaitlisted: sql<number>`COALESCE(SUM(${perSlot.waitlistCount}), 0)::int`,
+			projectedRevenueCents: sql<string>`COALESCE(SUM(${perSlot.pricePerSpotCents}::bigint * ${perSlot.capacity}), 0)::bigint`,
+		})
+		.from(perSlot);
+
+	return {
+		totalSlots: Number(agg?.totalSlots ?? 0),
+		avgFillRate: Number(agg?.avgFillRate ?? 0),
+		totalWaitlisted: Number(agg?.totalWaitlisted ?? 0),
+		// bigint comes back as a string from the driver — coerce to number (cents).
+		projectedRevenueCents: Number(agg?.projectedRevenueCents ?? 0),
+	};
+}
+
 export async function getClassSlotById(tenantDb: TenantDb, id: string) {
 	const row = await tenantDb.query.classSlots.findFirst({
 		where: eq(classSlots.id, id),

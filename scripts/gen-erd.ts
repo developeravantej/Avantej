@@ -410,28 +410,53 @@ function parseLogicalRefs(): LogicalRef[] {
 
 async function main() {
 	const cpUrl = process.env.DATABASE_URL!;
-	const cpPool = new Pool({ connectionString: cpUrl });
-	const cpDb = drizzle({ client: cpPool, schema: { organizations } });
-	const orgs = await cpDb.query.organizations.findMany({ limit: 10 });
-	if (!orgs.length) throw new Error("No orgs in control panel");
-	// Some rows (placeholder/test orgs) carry undecryptable connection
-	// strings — skip them instead of failing the whole drift report.
+
 	let tenantUrl: string | null = null;
 	let tenantOrgName = "";
-	for (const org of orgs) {
-		try {
-			tenantUrl = decrypt(org.connectionString);
-			tenantOrgName = org.name;
-			break;
-		} catch (err) {
-			console.warn(
-				`Skipping org "${org.name}" — connection string not decryptable: ${err instanceof Error ? err.message : String(err)}`,
+
+	// Preferred path: a dedicated, stable schema-reference tenant DB provided
+	// via TENANT_DATABASE_URL. This makes the drift gate resilient to a
+	// control-panel DB that contains only throwaway e2e test orgs whose
+	// connection strings fail to decrypt (wrong key / "Invalid initialization
+	// vector"). In CI, wire this to a known-good migrated tenant branch so the
+	// gate never aborts on org-discovery.
+	const refTenantUrl = process.env.TENANT_DATABASE_URL;
+	if (refTenantUrl) {
+		tenantUrl = refTenantUrl;
+		tenantOrgName = "(TENANT_DATABASE_URL reference tenant)";
+		console.log(
+			"Using TENANT_DATABASE_URL as the schema-reference tenant (skipping org discovery).",
+		);
+	} else {
+		// Fallback: discover a tenant by decrypting an org connection string
+		// from the control-panel DB. Some rows (placeholder/test orgs) carry
+		// undecryptable connection strings — skip them instead of failing the
+		// whole drift report.
+		const cpPool = new Pool({ connectionString: cpUrl });
+		const cpDb = drizzle({ client: cpPool, schema: { organizations } });
+		const orgs = await cpDb.query.organizations.findMany({ limit: 50 });
+		if (!orgs.length) {
+			await cpPool.end();
+			throw new Error("No orgs in control panel");
+		}
+		for (const org of orgs) {
+			try {
+				tenantUrl = decrypt(org.connectionString);
+				tenantOrgName = org.name;
+				break;
+			} catch (err) {
+				console.warn(
+					`Skipping org "${org.name}" — connection string not decryptable: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
+		}
+		await cpPool.end();
+		if (!tenantUrl) {
+			throw new Error(
+				"No org with a decryptable connection string found, and TENANT_DATABASE_URL is not set. " +
+					"Set TENANT_DATABASE_URL to a stable migrated tenant DB (see apps/server/.dev.vars) so the drift gate has a reference tenant to introspect.",
 			);
 		}
-	}
-	await cpPool.end();
-	if (!tenantUrl) {
-		throw new Error("No org with a decryptable connection string found");
 	}
 
 	console.log(`Using tenant: ${tenantOrgName}`);
@@ -501,7 +526,7 @@ async function main() {
 	let out = `# Schema ERD (auto-generated)\n\n`;
 	out += `> **Do not edit by hand.** Regenerate with \`bun scripts/gen-erd.ts\`.\n\n`;
 	out += `Generated: ${new Date().toISOString()}\n`;
-	out += `Tenant org: ${orgs[0].name}\n`;
+	out += `Tenant org: ${tenantOrgName}\n`;
 	out += `Control panel: ${cp.tables.length} tables, ${cp.fks.length} FKs\n`;
 	out += `Tenant: ${tenant.tables.length} tables, ${tenant.fks.length} FKs\n\n`;
 

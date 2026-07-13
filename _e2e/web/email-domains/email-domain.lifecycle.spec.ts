@@ -99,6 +99,21 @@ test.describe("email-domains", () => {
 			expect(rec).toHaveProperty("value");
 		}
 
+		// Re-registering the SAME domain is rejected with 409 CONFLICT. The create
+		// handler maps the pg unique-violation (23505) off drizzle's wrapped error
+		// cause (getPgErrorCode cause-walk) rather than surfacing a raw 500.
+		await expectRejected(
+			page.request,
+			"emailDomains/create",
+			{
+				organizationId,
+				domain: domainName,
+				fromName: testId("Dup From"),
+				defaultLocalPart: "noreply",
+			},
+			[409],
+		);
+
 		// ── LIST + GET ────────────────────────────────────────────────────────
 		const list = await rpc(page.request, "emailDomains/list", {
 			organizationId,

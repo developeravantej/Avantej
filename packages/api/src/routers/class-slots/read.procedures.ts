@@ -12,6 +12,7 @@ import {
 	listClassSlots,
 	getClassSlotById,
 	getBookingCounts,
+	getClassSlotKpis,
 	listClassSlotSignups,
 } from "@avantej-core/services/class-slots.service";
 import { user } from "@avantej-core/db/schema/auth";
@@ -55,6 +56,43 @@ const list = tenantProcedure
 			accessibleNodeIds: context.accessibleNodeIds,
 			limit: input.limit,
 			offset: input.offset,
+		});
+	});
+
+// Server-side aggregate KPIs over ALL slots matching the same filters the list
+// uses (branch scope + date range + service) — not just the loaded page. Staff
+// view only, so it requires class_slot_management:read for everyone (unlike
+// `list`, which lets clients browse). Scope/RBAC guarded identically to `list`.
+const kpis = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			serviceId: z.string().uuid().optional(),
+			branchId: z.string().uuid().optional(),
+			from: z.string().datetime().optional(),
+			to: z.string().datetime().optional(),
+			isAvailable: z.boolean().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"read",
+		);
+
+		return getClassSlotKpis(context.tenantDb, {
+			serviceId: input.serviceId,
+			branchId: input.branchId,
+			from: input.from ? new Date(input.from) : undefined,
+			to: input.to ? new Date(input.to) : undefined,
+			isAvailable: input.isAvailable,
+			accessibleNodeIds: context.accessibleNodeIds,
 		});
 	});
 
@@ -199,6 +237,7 @@ const getSignups = tenantProcedure
 
 export const classSlotsReadProcedures = {
 	list,
+	kpis,
 	getById,
 	bookingCounts,
 	getSignups,
