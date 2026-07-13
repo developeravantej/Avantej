@@ -42,8 +42,6 @@ import { client, orpc } from "@/utils/orpc";
 // scope for this minimal fix — a free-text UUID keeps the surface small while
 // unblocking the create → review flow end-to-end.
 
-type StaffMember = { id: string; userId: string; name: string };
-
 type TargetType = "salesOrderId" | "appointmentId" | "packageInstanceId";
 
 const TARGET_LABELS: Record<TargetType, string> = {

@@ -15,7 +15,6 @@ import { getPeriodDates, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import type { KpiSummary } from "@/features/sales/sales-view.types";
 import { KpiStrip } from "@/features/sales/components/KpiStrip";
 import { SalesTab } from "@/features/sales/components/SalesTab";
 import { PaymentsTab } from "@/features/sales/components/PaymentsTab";
