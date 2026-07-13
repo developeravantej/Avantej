@@ -13,6 +13,7 @@ import {
 } from "@avantej-core/services/email-domain.service";
 import {
 	getControlPanelDb,
+	getPgErrorCode,
 	LOCAL_PART_REGEX,
 	requireOrgAdmin,
 } from "./_shared";
@@ -93,8 +94,11 @@ export const aliasProcedures = {
 					label: input.label,
 				});
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
-				if (msg.includes("duplicate key") || msg.includes("unique")) {
+				// Drizzle wraps the pg error; the unique-violation code (23505)
+				// lives on `.cause`, not on the top-level message. Match the code
+				// via the cause-walking helper rather than string-matching, which
+				// misses the wrapped case and leaks a raw 500.
+				if (getPgErrorCode(e) === "23505") {
 					throw new ORPCError("CONFLICT", {
 						message: "Alias already exists for this local-part",
 					});

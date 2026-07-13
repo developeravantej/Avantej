@@ -202,17 +202,7 @@ export function MembershipsPage() {
 		queryKey: ["memberships", organizationId, filter, scopeNodeId, offset],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
-			const result = await (
-				client.packageInstances as unknown as {
-					listMemberships: (input: {
-						organizationId: string;
-						filter: MembershipFilter;
-						branchId?: string;
-						limit: number;
-						offset: number;
-					}) => Promise<{ rows: MembershipRow[]; total: number }>;
-				}
-			).listMemberships({
+			const result = await client.packageInstances.listMemberships({
 				organizationId,
 				filter,
 				branchId: scopeNodeId,

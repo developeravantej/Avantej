@@ -3,6 +3,7 @@ import { analyticsRouter } from "./analytics";
 import { announcementsRouter } from "./announcements";
 import { appointmentsRouter } from "./appointments";
 import { auditLogsRouter } from "./audit-logs";
+import { billingProfileRouter } from "./billing-profile";
 import { branchInvitesRouter } from "./branch-invites";
 import { brandsRouter } from "./brands";
 import { cancelledSalesRouter } from "./cancelled-sales";
@@ -47,6 +48,7 @@ import { productCategoriesRouter } from "./product-categories";
 import { productsRouter } from "./products";
 import { promotionsRouter } from "./promotions";
 import { purchaseOrdersRouter } from "./purchase-orders";
+import { receiptsRouter } from "./receipts";
 import { refundsRouter } from "./refunds";
 import { registrationRouter } from "./registration";
 import { reportsRouter } from "./reports";
@@ -116,6 +118,8 @@ export type BaseRouter = {
 	rooms: typeof roomsRouter;
 	salesOrders: typeof salesOrdersRouter;
 	invoices: typeof invoicesRouter;
+	receipts: typeof receiptsRouter;
+	billingProfile: typeof billingProfileRouter;
 	cancelledSales: typeof cancelledSalesRouter;
 	brands: typeof brandsRouter;
 	productCategories: typeof productCategoriesRouter;
@@ -194,6 +198,8 @@ export const baseRouter = {
 	rooms: roomsRouter,
 	salesOrders: salesOrdersRouter,
 	invoices: invoicesRouter,
+	receipts: receiptsRouter,
+	billingProfile: billingProfileRouter,
 	cancelledSales: cancelledSalesRouter,
 	brands: brandsRouter,
 	productCategories: productCategoriesRouter,

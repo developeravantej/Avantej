@@ -45,11 +45,19 @@ test.describe("attendance/check-ins", () => {
 		);
 	});
 
-	// SKIP: a member check-in requires clientId to be a UUID (customer profile id),
-	// but members.userId is a Better-Auth nanoid (non-uuid), so we can't supply a
-	// valid member clientId without seeding a real customer profile. Deferred to a
-	// seeded loop. (The "member without clientId → 400" rule above still runs.)
-	test.skip("Check-in rule — duplicate member drop-in within 30 min is rejected (409)", async ({
+	// CONDITIONAL GUARD (was an unconditional test.skip — plan-7 shared hygiene):
+	// The duplicate-drop-in rule IS implemented and unit-tested server-side
+	// (packages/services/src/check-ins.service.ts recordCheckIn step 2, 30-min
+	// window; apps/server/src/tests/unit/services/check-ins.test.ts). But it is
+	// unreachable over the API for real members: the router input schema
+	// (packages/api/src/routers/check-ins.ts — `clientId: z.string().uuid()`)
+	// rejects members.userId, which is a Better-Auth NANOID, never a UUID — the
+	// exact trap project memory warns about ("validate memberId as
+	// z.string().min(1) NOT .uuid()"). Until that schema is relaxed, a valid
+	// member clientId 400s at zod before the rule can fire.
+	// The probe below attempts the first check-in and skips ONLY on that 400, so
+	// this test auto-activates the moment the API schema bug is fixed.
+	test("Check-in rule — duplicate member drop-in within 30 min is rejected (409)", async ({
 		page,
 	}) => {
 		const organizationId = getOrgId();
@@ -67,14 +75,32 @@ test.describe("attendance/check-ins", () => {
 			`members/list self: ${JSON.stringify(selfRows)}`,
 		).toBeTruthy();
 
-		// First drop-in succeeds and returns the inserted check-in row.
-		const first = await rpc(page.request, "checkIns/recordCheckIn", {
+		// Probe: first drop-in. A 400 here means the known uuid-vs-nanoid input
+		// schema gap is still present (no row was created) -> conditional skip.
+		const firstRes = await rpcRaw(page.request, "checkIns/recordCheckIn", {
 			organizationId,
 			clientType: "member",
 			clientId,
 			branchId,
 			source: "drop_in",
 		});
+		test.skip(
+			firstRes.status() === 400,
+			"KNOWN API GAP: checkIns.recordCheckIn validates clientId as z.string().uuid() " +
+				"but member clientId is members.userId (Better-Auth nanoid) — the 30-min " +
+				"duplicate rule is server-implemented but unreachable via the API. " +
+				"Fix: relax clientId to z.string().min(1) in packages/api/src/routers/check-ins.ts.",
+		);
+
+		const firstBody = await firstRes.json().catch(() => null);
+		expect(
+			firstRes.ok(),
+			`first check-in: ${firstRes.status()} ${JSON.stringify(firstBody)}`,
+		).toBeTruthy();
+		const first =
+			firstBody && typeof firstBody === "object" && "json" in firstBody
+				? firstBody.json
+				: firstBody;
 		const firstId = first?.id ?? first?.checkIn?.id;
 		expect(firstId, `first check-in: ${JSON.stringify(first)}`).toBeTruthy();
 		cleanup.add(`check-in ${firstId}`, async () => {

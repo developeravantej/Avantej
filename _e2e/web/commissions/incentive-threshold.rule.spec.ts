@@ -57,12 +57,19 @@ test.describe("§12 commission — incentive thresholds", () => {
 			expect(run1.periodKey).toBe(PERIOD_KEY);
 			expect(run1.rulesEvaluated).toBeGreaterThanOrEqual(1);
 
+			// Scope to awards THIS test's rule produced. The sweep evaluates every
+			// active incentive rule in the shared tenant, so listAwards(periodKey)
+			// also returns awards from other concurrent/leftover rules — asserting
+			// over the whole set is fragile. Filter to rule.id.
+			const mine = (arr: unknown) =>
+				(arr as any[]).filter((a) => a.incentiveId === rule.id);
+
 			const awardsAfter1 = await rpc(
 				page.request,
 				"commissionIncentives/listAwards",
 				{ organizationId, periodKey: PERIOD_KEY },
 			);
-			const count1 = (awardsAfter1 as any[]).length;
+			const count1 = mine(awardsAfter1).length;
 
 			// Second sweep, same window — must create ZERO new awards.
 			const run2 = await rpc(page.request, "commissionIncentives/evaluate", {
@@ -82,12 +89,13 @@ test.describe("§12 commission — incentive thresholds", () => {
 				{ organizationId, periodKey: PERIOD_KEY },
 			);
 			expect(
-				(awardsAfter2 as any[]).length,
-				"award count is stable across re-runs (no double-pay)",
+				mine(awardsAfter2).length,
+				"this rule's award count is stable across re-runs (no double-pay)",
 			).toBe(count1);
 
-			// Every award (if any) is well-formed: positive bonus, snapshot fields set.
-			for (const a of awardsAfter2 as any[]) {
+			// Every award THIS rule produced (if any) is well-formed: non-negative
+			// bonus, correct snapshot fields.
+			for (const a of mine(awardsAfter2)) {
 				expect(a.bonusCents).toBeGreaterThanOrEqual(0);
 				expect(a.periodKey).toBe(PERIOD_KEY);
 				expect(a.incentiveId).toBe(rule.id);

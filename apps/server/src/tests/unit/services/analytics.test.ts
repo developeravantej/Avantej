@@ -12,21 +12,22 @@ import {
 let mockDb: any;
 
 function setupEmptyKpiMocks(db: ReturnType<typeof createMockTenantDb>) {
-	// getDashboardKpis makes 7 select() calls (in order):
+	// getDashboardKpis makes 6 select() calls (in order):
 	// 1. salesResult, 2. prevSalesResult, 3. apptTotal, 4. apptCompleted,
-	// 5. membersResult, 6. fillDrizzle (class fill rate), 7. revByBranch
+	// 5. fillDrizzle (class fill rate), 6. revByBranch
+	// (AVANTEJ-7: the active-members count now runs via tenantDb.execute() against
+	// customer_profiles instead of a members-table select().)
 	db.select
 		.mockReturnValueOnce(selectChainResolving([{ total: null, orderCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ total: null, orderCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ apptCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ completedCount: 0 }]))
-		.mockReturnValueOnce(selectChainResolving([{ activeCount: 0 }]))
 		.mockReturnValueOnce(
 			selectChainResolving([{ spotsBooked: null, capacity: null }]),
 		)
 		.mockReturnValueOnce(selectChainResolving([]));
-	// getDashboardKpis also makes 2 tenantDb.execute() calls (churn, ltv).
-	// Both read `.rows[0]`; the default mock returns [] (no `.rows`) → crash.
+	// getDashboardKpis makes 3 tenantDb.execute() calls (in order):
+	// 1. activeMembers, 2. churn, 3. ltv. All read `.rows`; default → [].
 	db.execute.mockResolvedValue({ rows: [] });
 }
 
@@ -140,7 +141,6 @@ describe("getDashboardKpis — return values", () => {
 			)
 			.mockReturnValueOnce(selectChainResolving([{ apptCount: 10 }]))
 			.mockReturnValueOnce(selectChainResolving([{ completedCount: 7 }]))
-			.mockReturnValueOnce(selectChainResolving([{ activeCount: 15 }]))
 			// fillDrizzle (class fill rate)
 			.mockReturnValueOnce(
 				selectChainResolving([{ spotsBooked: null, capacity: null }]),
@@ -155,7 +155,10 @@ describe("getDashboardKpis — return values", () => {
 					},
 				]),
 			);
-		mockDb.execute.mockResolvedValue({ rows: [] });
+		// AVANTEJ-7: active-members count is the first execute() call now.
+		mockDb.execute
+			.mockResolvedValueOnce({ rows: [{ active_count: 15 }] }) // activeMembers
+			.mockResolvedValue({ rows: [] }); // churn, ltv
 
 		const result = await getDashboardKpis(mockDb, {
 			period: "this_month",

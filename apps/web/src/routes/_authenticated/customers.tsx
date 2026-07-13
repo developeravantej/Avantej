@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requirePermission } from "@/lib/route-guards";
-import { CustomersListPage } from "@/components/pages/customers/CustomersListPage";
+import { makeTabRedirect } from "@/lib/tab-redirect";
 
+// Legacy customers list retired — permanent redirect to the v2 directory.
+// Route file kept so external links/bookmarks to /customers keep working.
 export const Route = createFileRoute("/_authenticated/customers")({
-	beforeLoad: async () => {
-		await requirePermission("user_management:read");
-	},
-	component: CustomersListPage,
+	beforeLoad: makeTabRedirect("/dashboard/customers/v2/view", "customers"),
 });

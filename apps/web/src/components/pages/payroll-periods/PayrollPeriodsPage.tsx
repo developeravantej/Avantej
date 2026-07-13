@@ -10,6 +10,8 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 
+import { UnlockPeriodDialog } from "./UnlockPeriodDialog";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -98,6 +100,12 @@ export function PayrollPeriodsPage() {
 	// ---- Lock-form state ----
 	const [lockBranchId, setLockBranchId] = useState("");
 	const [lockDate, setLockDate] = useState("");
+
+	// ---- Unlock-dialog state ----
+	// The id of the period being unlocked (null = dialog closed) + the reason
+	// draft. Replaces the old `window.prompt` flow.
+	const [unlockPeriodId, setUnlockPeriodId] = useState<string | null>(null);
+	const [unlockReason, setUnlockReason] = useState("");
 	// Default the lock target to the active scope only when it is itself a branch
 	// (a country/state scope isn't a lockable window), else the first branch.
 	const scopeIsBranch = branchOptions.some((n) => n.id === scopeNodeId);
@@ -145,6 +153,10 @@ export function PayrollPeriodsPage() {
 		errorMessage: (err) =>
 			`Failed to unlock period: ${err.message || "An unexpected error occurred"}`,
 		invalidate: [orpc.payrollPeriods.list.key()],
+		onSuccess: () => {
+			setUnlockPeriodId(null);
+			setUnlockReason("");
+		},
 	});
 
 	// ---- Handlers ----
@@ -160,15 +172,25 @@ export function PayrollPeriodsPage() {
 	}
 
 	function handleUnlock(periodId: string) {
-		const reason = window.prompt(
-			"Reason for unlocking this payroll period (min 3 characters):",
-		);
-		if (reason === null) return; // cancelled
-		if (reason.trim().length < 3) {
+		setUnlockReason("");
+		setUnlockPeriodId(periodId);
+	}
+
+	function handleUnlockConfirm() {
+		if (!unlockPeriodId) return;
+		if (unlockReason.trim().length < 3) {
 			toast.error("Unlock reason must be at least 3 characters.");
 			return;
 		}
-		unlockMutation.mutate({ periodId, reason: reason.trim() });
+		unlockMutation.mutate({
+			periodId: unlockPeriodId,
+			reason: unlockReason.trim(),
+		});
+	}
+
+	function handleUnlockCancel() {
+		setUnlockPeriodId(null);
+		setUnlockReason("");
 	}
 
 	// ---- Guards ----
@@ -397,6 +419,19 @@ export function PayrollPeriodsPage() {
 					</div>
 				)}
 			</div>
+
+			{/* ── Unlock confirm dialog (reason required) ── */}
+			<UnlockPeriodDialog
+				open={unlockPeriodId !== null}
+				onOpenChange={(open) => {
+					if (!open) handleUnlockCancel();
+				}}
+				reason={unlockReason}
+				setReason={setUnlockReason}
+				isPending={unlockMutation.isPending}
+				onConfirm={handleUnlockConfirm}
+				onCancel={handleUnlockCancel}
+			/>
 		</div>
 	);
 }

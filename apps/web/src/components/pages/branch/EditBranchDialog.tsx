@@ -20,7 +20,8 @@ import {
 import { MemberReassignment } from "@/components/branch/member-reassignment";
 import { MemberSelector } from "@/components/branch/member-selector";
 
-import type { HierarchyNode, NodeWithStats } from "./types";
+import type { HierarchyNode, NodeWithStats, OpeningHoursShape } from "./types";
+import { OpeningHoursEditor } from "./OpeningHoursEditor";
 
 // ─── Edit dialog ───────────────────────────────────────────────────────────
 
@@ -54,6 +55,8 @@ export function EditBranchDialog({
 	setEditReceiptPrefix,
 	editBranchTaxRateId,
 	setEditBranchTaxRateId,
+	editOpeningHours,
+	setEditOpeningHours,
 	taxRates,
 	allNodes,
 	countries,
@@ -91,6 +94,8 @@ export function EditBranchDialog({
 	setEditReceiptPrefix: (v: string) => void;
 	editBranchTaxRateId: string;
 	setEditBranchTaxRateId: (v: string) => void;
+	editOpeningHours: OpeningHoursShape;
+	setEditOpeningHours: (v: OpeningHoursShape) => void;
 	taxRates: { id: string; name: string; rateInBasisPoints: number }[];
 	allNodes: HierarchyNode[];
 	countries: HierarchyNode[];
@@ -310,6 +315,13 @@ export function EditBranchDialog({
 											))}
 										</SelectContent>
 									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="edit-opening-hours">Opening Hours</Label>
+									<OpeningHoursEditor
+										value={editOpeningHours}
+										onChange={setEditOpeningHours}
+									/>
 								</div>
 							</div>
 						)}

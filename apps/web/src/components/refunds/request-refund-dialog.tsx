@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { centsToRm, formatPrice, rmToCents } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const schema = z.object({
 	amountRm: z
@@ -121,7 +121,9 @@ export function RequestRefundDialog({
 
 				toast.success("Refund request submitted — pending approval.");
 				queryClient.invalidateQueries({
-					queryKey: ["refunds", organizationId],
+					// AVANTEJ-12 (same defect class): match the oRPC list query key so a
+					// newly requested refund appears without a manual reload.
+					queryKey: orpc.refunds.list.key(),
 				});
 				onOpenChange(false);
 				form.reset();

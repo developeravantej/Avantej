@@ -1,100 +1,64 @@
-import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient, mockOrpc } from "../helpers/mock-client";
 
-let DashboardComponent: React.ComponentType;
-vi.mock("@tanstack/react-router", () => ({
-	createFileRoute: () => (opts: { component: React.ComponentType }) => {
-		DashboardComponent = opts.component;
-		return {
-			component: opts.component,
-			useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
-			useNavigate: vi.fn().mockReturnValue(vi.fn()),
-		};
-	},
-	getRouteApi: () => ({
-		useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
-		useNavigate: vi.fn().mockReturnValue(vi.fn()),
-	}),
-	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: vi.fn().mockReturnValue(vi.fn()),
-	useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
-}));
+// Rewritten 2026-07-12 (web-maturity-remediation plan 7): the previous suite was
+// quarantined with describe.skip because it asserted the OLD dashboard UI
+// (period tabs, "Revenue by branch" table, KPI cards) that was replaced by
+// <DashboardLaunchpad> in the feat/dashboard-launchpad merge. This suite tests
+// the launchpad that the /dashboard route actually renders today.
+//
+// IMPORTANT (project convention): /dashboard must NOT be gated on role or org
+// membership — new SaaS owners legitimately land here with 0 orgs. The
+// "no organization" case renders a neutral prompt, never a redirect/denial.
+
+const ORG_ID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
+
+// Mutable per-test user-context state; the mock factory closes over it lazily.
+const userState: {
+	data: { currentOrganizationId: string | null } | undefined;
+	isLoading: boolean;
+	hasPermission: ReturnType<typeof vi.fn>;
+} = {
+	data: { currentOrganizationId: ORG_ID },
+	isLoading: false,
+	hasPermission: vi.fn().mockReturnValue(true),
+};
+
 vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
-		data: {
-			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
-		},
-		hasPermission: vi.fn().mockReturnValue(true),
+		data: userState.data,
+		isLoading: userState.isLoading,
+		hasPermission: userState.hasPermission,
 		hasAnyPermission: vi.fn().mockReturnValue(true),
 		hasRole: vi.fn().mockReturnValue(true),
 	}),
 }));
-vi.mock("@/lib/currency", () => ({
-	formatPriceMYR: (amount: number) => `RM ${amount.toFixed(2)}`,
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({ scopeNodeId: undefined }),
 }));
-
-// Mock child widgets that have their own data fetching
-vi.mock("@/components/appointments-widget", () => ({
-	AppointmentsWidget: () => (
-		<div data-testid="appointments-widget">Appointments Widget</div>
-	),
+vi.mock("@/components/scope/ScopeSwitcher", () => ({
+	ScopeSwitcher: () => <div data-testid="scope-switcher" />,
 }));
-vi.mock("@/components/announcements-widget", () => ({
-	AnnouncementsWidget: () => (
-		<div data-testid="announcements-widget">Announcements Widget</div>
-	),
-}));
-vi.mock("@/components/payroll-widget", () => ({
-	PayrollWidget: () => <div data-testid="payroll-widget">Payroll Widget</div>,
-}));
-vi.mock("@/components/claims-widget", () => ({
-	ClaimsWidget: () => <div data-testid="claims-widget">Claims Widget</div>,
-}));
-vi.mock("@/components/dashboard/expiring-memberships-widget", () => ({
-	ExpiringMembershipsWidget: () => (
-		<div data-testid="expiring-memberships-widget">
-			Expiring Memberships Widget
-		</div>
-	),
-}));
-vi.mock("@/components/dashboard/greeting-banner", () => ({
-	GreetingBanner: () => <div data-testid="greeting-banner">Dashboard</div>,
-}));
-vi.mock("@/components/dashboard/quick-actions", () => ({
-	QuickActions: () => <div data-testid="quick-actions" />,
-}));
-vi.mock("@/components/dashboard/section-header", () => ({
-	SectionHeader: ({ title }: { title: string }) => <div>{title}</div>,
-}));
-vi.mock("@/components/dashboard/quick-insight", () => ({
-	QuickInsight: ({ label }: { label: string }) => <div>{label}</div>,
-}));
-vi.mock("@/components/dashboard/pending-approvals-widget", () => ({
-	PendingApprovalsWidget: () => (
-		<div data-testid="pending-approvals-widget">Pending Approvals Widget</div>
+// Panels have their own heavy data fetching (POS workflow etc.) — stub them.
+vi.mock("@/components/pages/launchpad/panels", () => ({
+	LaunchpadPanel: ({ id }: { id: string }) => (
+		<div data-testid={`panel-${id}`}>Panel {id}</div>
 	),
 }));
 
-beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/index");
-});
+import { DashboardLaunchpad } from "@/components/pages/launchpad/DashboardLaunchpad";
 
-// QUARANTINED (merge of feat/dashboard-launchpad): the dashboard route now
-// renders <DashboardLaunchpad>, a different page than the one these tests were
-// written for. Every assertion below targets the OLD dashboard UI (period
-// tabs, "Revenue by branch" table, KPI cards, analytics.getDashboardKpis),
-// none of which DashboardLaunchpad renders — it uses members.newToday etc.
-// These failed identically on the pristine feat/dashboard-launchpad branch
-// (pre-existing, not introduced by the merge).
-// TODO(dashboard-launchpad): rewrite this suite against DashboardLaunchpad's
-// actual UI + queries, then un-skip.
-describe.skip("Dashboard page", () => {
+describe("Dashboard launchpad", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		userState.data = { currentOrganizationId: ORG_ID };
+		userState.isLoading = false;
+		userState.hasPermission = vi.fn().mockReturnValue(true);
+		// Badge queries — resolve to empty by default so no badge renders.
 		mockClient.analytics.getDashboardKpis.mockResolvedValue({
 			totalSales: 0,
 			salesOrderCount: 0,
@@ -103,147 +67,142 @@ describe.skip("Dashboard page", () => {
 			activeMembersCount: 0,
 			revenueByBranch: [],
 		});
-		mockClient.analytics.getStaffPerformance.mockResolvedValue([]);
+		mockClient.installments.listUpcoming.mockResolvedValue({
+			total: 0,
+			items: [],
+		});
+		mockClient.payouts.list.mockResolvedValue([]);
+		mockClient.packageInstances.listExpiring.mockResolvedValue({
+			total: 0,
+			items: [],
+		});
+		mockClient.refunds.list.mockResolvedValue({ total: 0, items: [] });
 	});
 
-	test("renders Dashboard heading", async () => {
-		renderWithProviders(<DashboardComponent />);
+	test("shows loading state while user context is resolving", () => {
+		userState.data = undefined;
+		userState.isLoading = true;
 
+		renderWithProviders(<DashboardLaunchpad />);
+
+		expect(screen.getByText("Loading your dashboard…")).toBeInTheDocument();
+	});
+
+	test("shows neutral org prompt (NOT a denial) when user has no organization", () => {
+		// New SaaS owners land on /dashboard with 0 orgs — this must render a
+		// prompt, never gate on role/orgs.
+		userState.data = { currentOrganizationId: null };
+
+		renderWithProviders(<DashboardLaunchpad />);
+
+		expect(
+			screen.getByText("Select an organization to continue."),
+		).toBeInTheDocument();
+	});
+
+	test("renders Dashboard heading, scope switcher and all daily-task cards for a full-permission user", async () => {
+		renderWithProviders(<DashboardLaunchpad />);
+
+		expect(screen.getByText("Dashboard")).toBeInTheDocument();
+		expect(screen.getByText("Daily tasks")).toBeInTheDocument();
+		expect(screen.getByTestId("scope-switcher")).toBeInTheDocument();
+
+		// All 8 launchpad cards visible when every permission check passes.
+		for (const label of [
+			"New Sale",
+			"Create Customer",
+			"View Customers",
+			"Renewals / Expiring",
+			"Installments",
+			"Refunds & Cancellations",
+			"Commission Payout",
+			"Trainer Schedule",
+		]) {
+			expect(
+				screen.getByRole("button", { name: new RegExp(label) }),
+			).toBeInTheDocument();
+		}
+
+		// First visible card (New Sale) is active — its panel mounts.
 		await waitFor(() => {
-			expect(screen.getByText("Dashboard")).toBeInTheDocument();
+			expect(screen.getByTestId("panel-new-sale")).toBeInTheDocument();
 		});
 	});
 
-	test("defaults to 'this_month' period", async () => {
-		renderWithProviders(<DashboardComponent />);
+	test("hides permission-gated cards the user cannot access", () => {
+		// Only POS permission — every other card should disappear.
+		userState.hasPermission = vi.fn((perm: string) => perm === "pos:create");
 
-		await waitFor(() => {
-			expect(mockClient.analytics.getDashboardKpis).toHaveBeenCalledWith(
-				expect.objectContaining({ period: "this_month" }),
-				expect.anything(),
-			);
-		});
+		renderWithProviders(<DashboardLaunchpad />);
+
+		expect(
+			screen.getByRole("button", { name: /New Sale/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /Commission Payout/ }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /View Customers/ }),
+		).not.toBeInTheDocument();
 	});
 
-	test("renders period selector tabs", async () => {
-		renderWithProviders(<DashboardComponent />);
+	test("shows empty state when no cards are visible for the role", () => {
+		userState.hasPermission = vi.fn().mockReturnValue(false);
 
-		await waitFor(() => {
-			// Period pills: labels are "Today", "Week", "Month", "Year"
-			expect(screen.getAllByText("Today").length).toBeGreaterThan(0);
-			expect(screen.getByRole("button", { name: "Week" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Month" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Year" })).toBeInTheDocument();
-		});
+		renderWithProviders(<DashboardLaunchpad />);
+
+		expect(
+			screen.getByText("No tasks available for your role."),
+		).toBeInTheDocument();
 	});
 
-	test("switching to 'Today' maps staff performance period to 'this_week'", async () => {
+	test("switching cards mounts the new panel and keeps visited panels alive", async () => {
 		const user = userEvent.setup();
-		renderWithProviders(<DashboardComponent />);
+		renderWithProviders(<DashboardLaunchpad />);
 
-		const todayBtn = await screen.findByRole("button", { name: "Today" });
-		await user.click(todayBtn);
-
-		// Navigate called; initial API call already happened
+		// Initial active panel.
 		await waitFor(() => {
-			expect(mockClient.analytics.getDashboardKpis).toHaveBeenCalled();
+			expect(screen.getByTestId("panel-new-sale")).toBeInTheDocument();
+		});
+		expect(screen.queryByTestId("panel-customers")).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: /View Customers/ }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("panel-customers")).toBeInTheDocument();
+		});
+		// Keep-alive: the previously visited panel stays mounted (hidden), so a
+		// half-built POS sale survives switching cards.
+		expect(screen.getByTestId("panel-new-sale")).toBeInTheDocument();
+	});
+
+	test("renders worklist badge from installments due count", async () => {
+		mockClient.installments.listUpcoming.mockResolvedValue({
+			total: 5,
+			items: [],
+		});
+
+		renderWithProviders(<DashboardLaunchpad />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: /Installments/ }),
+			).toHaveTextContent("5");
 		});
 	});
 
-	test("KPI cards show formatted sales total (cents to RM)", async () => {
-		mockClient.analytics.getDashboardKpis.mockResolvedValue({
-			totalSales: 250000,
-			salesOrderCount: 50,
-			totalAppointments: 120,
-			completedAppointments: 100,
-			activeMembersCount: 45,
-			revenueByBranch: [],
+	test("caps badge display at 99+", async () => {
+		mockClient.installments.listUpcoming.mockResolvedValue({
+			total: 250,
+			items: [],
 		});
 
-		renderWithProviders(<DashboardComponent />);
+		renderWithProviders(<DashboardLaunchpad />);
 
 		await waitFor(() => {
-			// Revenue appears in multiple tiles (hero + KPI grid); assert at least one match
-			expect(screen.getAllByText(/2[,.]500/).length).toBeGreaterThan(0);
-		});
-	});
-
-	test("displays order count", async () => {
-		mockClient.analytics.getDashboardKpis.mockResolvedValue({
-			totalSales: 100000,
-			salesOrderCount: 25,
-			totalAppointments: 0,
-			completedAppointments: 0,
-			activeMembersCount: 0,
-			revenueByBranch: [],
-		});
-
-		renderWithProviders(<DashboardComponent />);
-
-		await waitFor(() => {
-			// "25 orders" appears in both the hero stat line and the branch table; assert at least one match
-			expect(screen.getAllByText(/25 orders/).length).toBeGreaterThan(0);
-		});
-	});
-
-	test("completion rate displays as percentage", async () => {
-		mockClient.analytics.getDashboardKpis.mockResolvedValue({
-			totalSales: 0,
-			salesOrderCount: 0,
-			totalAppointments: 100,
-			completedAppointments: 75,
-			activeMembersCount: 0,
-			revenueByBranch: [],
-		});
-
-		renderWithProviders(<DashboardComponent />);
-
-		await waitFor(() => {
-			expect(screen.getByText(/75%/)).toBeInTheDocument();
-		});
-	});
-
-	test("revenue by branch table renders branch data", async () => {
-		mockClient.analytics.getDashboardKpis.mockResolvedValue({
-			totalSales: 500000,
-			salesOrderCount: 10,
-			totalAppointments: 0,
-			completedAppointments: 0,
-			activeMembersCount: 0,
-			revenueByBranch: [
-				{
-					branchId: "b1",
-					branchName: "KL Branch",
-					totalRevenue: 300000,
-					orderCount: 6,
-				},
-				{
-					branchId: "b2",
-					branchName: "Penang Branch",
-					totalRevenue: 200000,
-					orderCount: 4,
-				},
-			],
-		});
-
-		renderWithProviders(<DashboardComponent />);
-
-		await waitFor(() => {
-			expect(screen.getByText("KL Branch")).toBeInTheDocument();
-			expect(screen.getByText("Penang Branch")).toBeInTheDocument();
-		});
-	});
-
-	test("renders KPI card titles", async () => {
-		renderWithProviders(<DashboardComponent />);
-
-		await waitFor(() => {
-			// KPI tile labels (uppercase in DOM) inside the hero 2x2 grid
-			expect(screen.getByText("Today's Revenue")).toBeInTheDocument();
-			expect(screen.getByText("Active Members")).toBeInTheDocument();
-			// Section headings (sentence-case)
-			expect(screen.getByText("Revenue by branch")).toBeInTheDocument();
-			expect(screen.getByText("Top performers")).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Installments/ }),
+			).toHaveTextContent("99+");
 		});
 	});
 });

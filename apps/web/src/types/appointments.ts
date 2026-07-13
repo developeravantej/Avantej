@@ -87,6 +87,12 @@ export type OnSubmitPayload = {
 	title: string;
 	client: Client;
 	service: string;
+	// AVANTEJ-5: the selected service's id (the `service` field above is only a
+	// display name). Threaded to createAppointment so the Schedule Service column
+	// isn't "—".
+	serviceId?: string | null;
+	// AVANTEJ-15: the client's package instance for the service, so credits deduct.
+	packageInstanceId?: string | null;
 	location?: string;
 	remarks?: string;
 	start: Date;

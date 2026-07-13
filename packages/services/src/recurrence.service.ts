@@ -300,12 +300,20 @@ export async function listAppointmentsWithRecurrence(
 	params: {
 		organizationId: string;
 		trainerId?: string;
+		/**
+		 * AVANTEJ-10: filter to a single customer (appointments.userId). Pushed into
+		 * the DB query so the customer-profile Appointments tab fetches only that
+		 * customer's rows instead of expanding every org-wide recurring series just
+		 * to slice to 50 — that was both a correctness bug (every customer showed the
+		 * same org-wide list) and a main-thread/server blowup.
+		 */
+		userId?: string;
 		startFrom: Date;
 		startTo: Date;
 		accessibleNodeIds: string[];
 	},
 ): Promise<AppointmentWithOccurrence[]> {
-	const { startFrom, startTo, accessibleNodeIds, trainerId } = params;
+	const { startFrom, startTo, accessibleNodeIds, trainerId, userId } = params;
 
 	// Guard: Drizzle inArray([]) crashes
 	if (accessibleNodeIds.length === 0) return [];
@@ -319,6 +327,9 @@ export async function listAppointmentsWithRecurrence(
 	];
 	if (trainerId) {
 		baseConditions.push(eq(appointments.trainerId, trainerId));
+	}
+	if (userId) {
+		baseConditions.push(eq(appointments.userId, userId));
 	}
 
 	const baseRows = await tenantDb
@@ -359,6 +370,9 @@ export async function listAppointmentsWithRecurrence(
 	];
 	if (trainerId) {
 		childConditions.push(eq(appointments.trainerId, trainerId));
+	}
+	if (userId) {
+		childConditions.push(eq(appointments.userId, userId));
 	}
 
 	const materializedChildren = await tenantDb

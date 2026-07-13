@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { rmToCents } from "@/lib/money";
+import { centsToRm, rmToCents } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
 
 // F-COM-01 (best-guess product decision): the `manualAdjustment` procedure
@@ -42,8 +42,6 @@ import { client, orpc } from "@/utils/orpc";
 // scope for this minimal fix — a free-text UUID keeps the surface small while
 // unblocking the create → review flow end-to-end.
 
-type StaffMember = { id: string; userId: string; name: string };
-
 type TargetType = "salesOrderId" | "appointmentId" | "packageInstanceId";
 
 const TARGET_LABELS: Record<TargetType, string> = {
@@ -53,20 +51,33 @@ const TARGET_LABELS: Record<TargetType, string> = {
 };
 
 const schema = z.object({
-	staffId: z.string().uuid("Select a staff member"),
-	// Signed amount in RM. Non-zero. Stored as signed cents.
+	// staffId is members.userId — a Better-Auth nanoid, NOT a UUID. Mirror the
+	// server contract (createManualAdjustment: z.string().min(1)); a .uuid() check
+	// here would reject every real staff selection.
+	staffId: z.string().min(1, "Select a staff member"),
+	// Direction decides the sign of the stored cents: bonus = +, clawback = −.
+	direction: z.enum(["bonus", "clawback"]),
+	// Positive magnitude in RM. The sign comes from `direction`, so the entered
+	// value is always > 0 (zero rejected). Signed cents are computed at submit.
 	amountRm: z
 		.string()
 		.min(1, "Amount is required")
 		.refine(
-			(v) =>
-				Number.isFinite(Number.parseFloat(v)) && Number.parseFloat(v) !== 0,
-			{ message: "Enter a valid non-zero amount" },
+			(v) => Number.isFinite(Number.parseFloat(v)) && Number.parseFloat(v) > 0,
+			{ message: "Enter a valid amount greater than zero" },
 		),
 	note: z.string().min(1, "Note is required"),
 	targetType: z.enum(["salesOrderId", "appointmentId", "packageInstanceId"]),
 	targetId: z.string().uuid("Enter a valid target UUID"),
 });
+
+// Convert a positive RM magnitude + direction into signed integer cents.
+// rmToCents (money.ts) rejects negatives by design, so we always feed it the
+// positive magnitude and negate here for clawbacks.
+function toSignedCents(direction: FormValues["direction"], amountRm: string) {
+	const magnitude = rmToCents(Number.parseFloat(amountRm));
+	return direction === "clawback" ? -magnitude : magnitude;
+}
 
 type FormValues = z.infer<typeof schema>;
 
@@ -113,7 +124,8 @@ export function ManualAdjustmentDialog({
 			client.commissionSplits.createManualAdjustment({
 				organizationId,
 				staffId: value.staffId,
-				amountCents: rmToCents(Number.parseFloat(value.amountRm)),
+				// Signed cents: clawbacks are negative (server accepts amountCents < 0).
+				amountCents: toSignedCents(value.direction, value.amountRm),
 				note: value.note,
 				// Exactly one target — keyed off the chosen target type.
 				[value.targetType]: value.targetId,
@@ -138,6 +150,7 @@ export function ManualAdjustmentDialog({
 	const form = useForm({
 		defaultValues: {
 			staffId: "",
+			direction: "bonus",
 			amountRm: "",
 			note: "",
 			targetType: "salesOrderId",
@@ -209,6 +222,42 @@ export function ManualAdjustmentDialog({
 							)}
 						</form.Field>
 
+						<form.Field name="direction">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>
+										Type <span className="text-rose-600">*</span>
+									</Label>
+									<div
+										role="radiogroup"
+										aria-label="Adjustment type"
+										className="grid grid-cols-2 gap-2"
+									>
+										{(["bonus", "clawback"] as const).map((d) => {
+											const selected = field.state.value === d;
+											return (
+												<Button
+													key={d}
+													type="button"
+													role="radio"
+													aria-checked={selected}
+													variant={selected ? "default" : "outline"}
+													onClick={() => field.handleChange(d)}
+													className={
+														selected && d === "clawback"
+															? "bg-rose-600 text-white hover:bg-rose-700"
+															: undefined
+													}
+												>
+													{d === "bonus" ? "Bonus (+)" : "Clawback (−)"}
+												</Button>
+											);
+										})}
+									</div>
+								</div>
+							)}
+						</form.Field>
+
 						<form.Field name="amountRm">
 							{(field) => (
 								<div className="space-y-2">
@@ -219,14 +268,44 @@ export function ManualAdjustmentDialog({
 										id={field.name}
 										type="number"
 										step="0.01"
-										placeholder="0.00 (negative for a clawback)"
+										placeholder="0.00"
 										value={field.state.value}
 										onBlur={field.handleBlur}
 										onChange={(e) => field.handleChange(e.target.value)}
 									/>
-									<p className="text-xs text-[#737373]">
-										Use a negative amount for a clawback / deduction.
-									</p>
+									<form.Subscribe
+										selector={(state) => ({
+											direction: state.values.direction,
+											amountRm: state.values.amountRm,
+										})}
+									>
+										{({ direction, amountRm }) => {
+											const n = Number.parseFloat(amountRm);
+											if (!Number.isFinite(n) || n <= 0) {
+												return (
+													<p className="text-xs text-[#737373]">
+														Choose Bonus to add or Clawback to deduct.
+													</p>
+												);
+											}
+											const signed =
+												direction === "clawback"
+													? -Math.round(n * 100)
+													: Math.round(n * 100);
+											const isClawback = signed < 0;
+											return (
+												<p
+													data-testid="amount-preview"
+													className={`text-xs font-medium ${
+														isClawback ? "text-rose-600" : "text-emerald-600"
+													}`}
+												>
+													{isClawback ? "−" : "+"}RM{" "}
+													{centsToRm(Math.abs(signed))}
+												</p>
+											);
+										}}
+									</form.Subscribe>
 									<FieldError errors={field.state.meta.errors} />
 								</div>
 							)}

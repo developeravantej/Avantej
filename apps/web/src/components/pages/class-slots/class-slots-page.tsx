@@ -23,6 +23,53 @@ import { SignupsDialog } from "./SignupsDialog";
 import { CancelClassSlotDialog } from "./CancelClassSlotDialog";
 
 // ---------------------------------------------------------------------------
+// KPI computation (client-side, over LOADED rows only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes the KPI tile values from the class slots currently loaded on the
+ * client. NOTE: the list query returns a bounded page, so these figures cover
+ * loaded rows only — they are NOT server-side aggregates across all slots.
+ * The tile sublabels state this explicitly ("loaded slots").
+ */
+export function computeClassSlotKpis(
+	classSlots: Array<{
+		isCancelled: boolean;
+		capacity: number;
+		spotsBooked: number;
+		waitlistCount?: number | null;
+		pricePerSpotCents?: number | null;
+	}>,
+) {
+	const activeSlots = classSlots.filter((s) => !s.isCancelled);
+	const totalSlots = activeSlots.length;
+
+	const avgFillRate =
+		activeSlots.length > 0
+			? Math.round(
+					(activeSlots.reduce(
+						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
+						0,
+					) /
+						activeSlots.length) *
+						100,
+				)
+			: 0;
+
+	const totalWaitlisted = activeSlots.reduce(
+		(sum, s) => sum + (s.waitlistCount ?? 0),
+		0,
+	);
+
+	const projectedRevenueCents = activeSlots.reduce(
+		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
+		0,
+	);
+
+	return { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents };
+}
+
+// ---------------------------------------------------------------------------
 // Route component
 // ---------------------------------------------------------------------------
 
@@ -85,6 +132,20 @@ export function ClassSlotsPage() {
 		enabled: !!organizationId,
 	});
 
+	// AVANTEJ-10: the Instructor <Select> mounts one Radix <SelectItem> per option
+	// synchronously when opened. `membersData` is the whole roster including every
+	// `client` (customers — thousands in a real tenant), which froze the main
+	// thread for tens of seconds. Instructors are staff, never customers, so pass
+	// only non-client members to the dialogs. Full `membersData` is kept for
+	// instructor-name resolution in the list rows below.
+	const instructorOptions = useMemo(
+		() =>
+			membersData.filter(
+				(m: (typeof membersData)[number]) => m.role !== "client",
+			),
+		[membersData],
+	);
+
 	const { data: signups = [], isLoading: signupsLoading } = useQuery({
 		...orpc.classSlots.getSignups.queryOptions({
 			input: {
@@ -99,9 +160,11 @@ export function ClassSlotsPage() {
 	// Mutations
 	// ---------------------------------------------------------------------------
 
-	const classSlotsKey = orpc.classSlots.list.queryOptions({
-		input: { organizationId: organizationId! },
-	}).queryKey;
+	// AVANTEJ-17: invalidate via the oRPC list key PREFIX so it matches the live
+	// query regardless of its input. The list query is keyed with
+	// `branchId: scopeNodeId`, but this invalidate key omitted branchId and so
+	// didn't match — the list went stale after create/update/cancel until a reload.
+	const classSlotsKey = orpc.classSlots.list.key();
 
 	const createMutation = useApiMutation({
 		mutationFn: (form: CreateFormState) => {
@@ -263,33 +326,11 @@ export function ClassSlotsPage() {
 	};
 
 	// ---------------------------------------------------------------------------
-	// KPI computation (client-side)
+	// KPI computation (client-side, loaded rows only — see computeClassSlotKpis)
 	// ---------------------------------------------------------------------------
 
-	const activeSlots = classSlots.filter((s) => !s.isCancelled);
-	const totalSlots = activeSlots.length;
-
-	const avgFillRate =
-		activeSlots.length > 0
-			? Math.round(
-					(activeSlots.reduce(
-						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
-						0,
-					) /
-						activeSlots.length) *
-						100,
-				)
-			: 0;
-
-	const totalWaitlisted = activeSlots.reduce(
-		(sum, s) => sum + (s.waitlistCount ?? 0),
-		0,
-	);
-
-	const projectedRevenueCents = activeSlots.reduce(
-		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
-		0,
-	);
+	const { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents } =
+		computeClassSlotKpis(classSlots);
 
 	// ---------------------------------------------------------------------------
 	// Filtered flat slot list
@@ -375,7 +416,7 @@ export function ClassSlotsPage() {
 					<KpiTile
 						label="Total Slots"
 						value={<span className="font-mono tabular-nums">{totalSlots}</span>}
-						sub="active slots"
+						sub="active slots (loaded)"
 					/>
 					<KpiTile
 						label="Avg Fill Rate"
@@ -386,14 +427,14 @@ export function ClassSlotsPage() {
 							</>
 						}
 						fillPct={avgFillRate}
-						sub="across active slots"
+						sub="of loaded slots"
 					/>
 					<KpiTile
 						label="Waitlisted"
 						value={
 							<span className="font-mono tabular-nums">{totalWaitlisted}</span>
 						}
-						sub="across active slots"
+						sub="of loaded slots"
 						accent={totalWaitlisted > 0 ? "amber" : "default"}
 					/>
 					<KpiTile
@@ -403,7 +444,7 @@ export function ClassSlotsPage() {
 								{formatPrice(projectedRevenueCents)}
 							</span>
 						}
-						sub="capacity × price per spot"
+						sub="capacity × price, loaded slots"
 					/>
 				</div>
 
@@ -431,7 +472,7 @@ export function ClassSlotsPage() {
 				onOpenChange={setCreateSheetOpen}
 				organizationId={organizationId}
 				services={services}
-				membersData={membersData}
+				membersData={instructorOptions}
 				createForm={createForm}
 				setCreateForm={setCreateForm}
 				isPending={createMutation.isPending}
@@ -442,7 +483,7 @@ export function ClassSlotsPage() {
 				open={editSheetOpen}
 				onOpenChange={setEditSheetOpen}
 				editingSlot={editingSlot}
-				membersData={membersData}
+				membersData={instructorOptions}
 				editForm={editForm}
 				setEditForm={setEditForm}
 				isPending={updateMutation.isPending}

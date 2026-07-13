@@ -27,9 +27,12 @@ export type NodeWithStats = {
 };
 
 // Opening hours shape from DB: { monday: { open: string; close: string } | null, ... }
+// Values are never `undefined` — an unset day is an ABSENT key (and null =
+// closed), matching the hierarchy.updateNode zod record, which rejects
+// undefined values.
 export type OpeningHoursShape = Record<
 	string,
-	{ open: string; close: string } | null | undefined
+	{ open: string; close: string } | null
 >;
 
 export const DAYS_OF_WEEK = [

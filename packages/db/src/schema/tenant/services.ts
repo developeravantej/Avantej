@@ -35,7 +35,7 @@ export const services = pgTable(
 		}),
 
 		// Duration configuration (flexible time units)
-		duration: integer("duration").notNull(), // Duration in seconds
+		duration: integer("duration").notNull(), // Duration in `durationUnitType` units (default: minutes)
 		durationUnitType: text("duration_unit_type").notNull().default("minutes"), // "seconds" | "minutes" | "hours"
 
 		// Capacity configuration

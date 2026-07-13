@@ -45,6 +45,11 @@ export type CreateAppointmentParams = {
 	duration: number;
 	notes?: string;
 	userId?: string | null;
+	// AVANTEJ-5: carry the selected service so the created appointment stores it
+	// (otherwise the Schedule "Service" column shows "—").
+	serviceId?: string | null;
+	// AVANTEJ-15: the client's package instance, so createAppointment deducts a credit.
+	packageInstanceId?: string | null;
 	staffAssignments?: { staffId: string; slotIndex: number }[];
 	recurrence?: CreateRecurrenceParams;
 };

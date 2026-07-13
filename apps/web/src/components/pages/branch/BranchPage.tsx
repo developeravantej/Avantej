@@ -23,7 +23,7 @@ import { EditBranchDialog } from "./EditBranchDialog";
 import { NodeDetailPanel } from "./NodeDetailPanel";
 import { TreeRow } from "./TreeRow";
 import { buildBreadcrumb, buildTree } from "./tree";
-import type { HierarchyNode, NodeWithStats } from "./types";
+import type { HierarchyNode, NodeWithStats, OpeningHoursShape } from "./types";
 
 // ─── Branch Page ───────────────────────────────────────────────────────────────
 
@@ -55,6 +55,9 @@ export function BranchPage() {
 	const [editInvoicePrefix, setEditInvoicePrefix] = useState("");
 	const [editReceiptPrefix, setEditReceiptPrefix] = useState("");
 	const [editBranchTaxRateId, setEditBranchTaxRateId] = useState("");
+	const [editOpeningHours, setEditOpeningHours] = useState<OpeningHoursShape>(
+		{},
+	);
 	const [allNodes, setAllNodes] = useState<HierarchyNode[]>([]);
 
 	// Tree expand state
@@ -163,6 +166,8 @@ export function BranchPage() {
 				invoicePrefix: selectedBranchDetails.invoicePrefix,
 				receiptPrefix: selectedBranchDetails.receiptPrefix,
 				branchTaxRateId: selectedBranchDetails.branchTaxRateId,
+				// AVANTEJ-16: surface persisted opening hours on the detail panel.
+				openingHours: selectedBranchDetails.openingHours ?? null,
 			};
 		}
 		return selectedNode;
@@ -273,6 +278,7 @@ export function BranchPage() {
 			invoicePrefix,
 			receiptPrefix,
 			branchTaxRateId,
+			openingHours,
 		}: {
 			nodeId: string;
 			name?: string;
@@ -284,6 +290,7 @@ export function BranchPage() {
 			invoicePrefix?: string | null;
 			receiptPrefix?: string | null;
 			branchTaxRateId?: string | null;
+			openingHours?: OpeningHoursShape | null;
 		}) => {
 			if (!organizationId) throw new Error("Organization ID required");
 			return client.hierarchy.updateNode({
@@ -298,6 +305,7 @@ export function BranchPage() {
 				invoicePrefix,
 				receiptPrefix,
 				branchTaxRateId,
+				openingHours,
 			});
 		},
 		successMessage: false,
@@ -391,6 +399,7 @@ export function BranchPage() {
 			setEditInvoicePrefix(node.invoicePrefix ?? "");
 			setEditReceiptPrefix(node.receiptPrefix ?? "");
 			setEditBranchTaxRateId(node.branchTaxRateId ?? "");
+			setEditOpeningHours((node.openingHours as OpeningHoursShape) ?? {});
 			setIsEditDialogOpen(true);
 		},
 		[allNodes, hierarchyNodesData],
@@ -430,6 +439,10 @@ export function BranchPage() {
 			isBranch && trimReceiptPrefix !== (editingNode.receiptPrefix ?? "");
 		const taxRateChanged =
 			isBranch && editBranchTaxRateId !== (editingNode.branchTaxRateId ?? "");
+		const openingHoursChanged =
+			isBranch &&
+			JSON.stringify(editOpeningHours ?? {}) !==
+				JSON.stringify((editingNode.openingHours as OpeningHoursShape) ?? {});
 
 		const profileChanged =
 			companyChanged ||
@@ -437,7 +450,8 @@ export function BranchPage() {
 			taxIdChanged ||
 			invoicePrefixChanged ||
 			receiptPrefixChanged ||
-			taxRateChanged;
+			taxRateChanged ||
+			openingHoursChanged;
 
 		if (
 			!nameChanged &&
@@ -464,6 +478,7 @@ export function BranchPage() {
 					invoicePrefix?: string | null;
 					receiptPrefix?: string | null;
 					branchTaxRateId?: string | null;
+					openingHours?: OpeningHoursShape | null;
 				} = { nodeId: editingNode.id };
 				if (nameChanged) params.name = trimName;
 				if (addressChanged) params.address = trimAddress || null;
@@ -477,6 +492,7 @@ export function BranchPage() {
 					params.receiptPrefix = trimReceiptPrefix || null;
 				if (taxRateChanged)
 					params.branchTaxRateId = editBranchTaxRateId || null;
+				if (openingHoursChanged) params.openingHours = editOpeningHours;
 				await updateMutation.mutateAsync(params);
 			}
 
@@ -691,6 +707,8 @@ export function BranchPage() {
 				setEditReceiptPrefix={setEditReceiptPrefix}
 				editBranchTaxRateId={editBranchTaxRateId}
 				setEditBranchTaxRateId={setEditBranchTaxRateId}
+				editOpeningHours={editOpeningHours}
+				setEditOpeningHours={setEditOpeningHours}
 				taxRates={taxRates}
 				allNodes={allNodes}
 				countries={countries}

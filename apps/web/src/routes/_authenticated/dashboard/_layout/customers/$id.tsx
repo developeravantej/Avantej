@@ -94,7 +94,13 @@ function Customer360Page() {
 	// ── Upcoming appointments (overview tab) ───────────────────────────────
 	const { data: upcomingAppts } = useQuery({
 		...orpc.appointments.list.queryOptions({
-			input: { organizationId: organizationId!, status: "confirmed", limit: 3 },
+			// AVANTEJ-10: scope to this customer, not the whole org.
+			input: {
+				organizationId: organizationId!,
+				userId: detail?.member.userId,
+				status: "confirmed",
+				limit: 3,
+			},
 		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
@@ -103,7 +109,12 @@ function Customer360Page() {
 	// ── All appointments (appointments tab) ────────────────────────────────
 	const { data: allAppts } = useQuery({
 		...orpc.appointments.list.queryOptions({
-			input: { organizationId: organizationId!, limit: 50 },
+			// AVANTEJ-10: scope to this customer, not the whole org.
+			input: {
+				organizationId: organizationId!,
+				userId: detail?.member.userId,
+				limit: 50,
+			},
 		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,

@@ -39,7 +39,11 @@ type MemberListItem = {
 };
 
 type PackageInstanceItem = {
+	id: string;
 	serviceId: string;
+	creditsRemaining?: number;
+	isLocked?: boolean;
+	status?: string;
 };
 
 export type ClassSlotOption = {
@@ -217,6 +221,23 @@ export function useAppointmentFormState({
 			),
 		[clientPackageInstances],
 	);
+
+	// AVANTEJ-15: the client's active package instance for the selected service, so
+	// a form booking deducts a credit (createAppointment handles ownership/lock/
+	// credit checks). Only pick an active, unlocked instance that still has credits
+	// — otherwise fall back to null so the booking still succeeds without deduction
+	// (the pre-fix behaviour) instead of failing with "not enough credits".
+	const selectedPackageInstanceId = useMemo(() => {
+		if (!firstServiceId) return null;
+		const match = (clientPackageInstances as PackageInstanceItem[]).find(
+			(p) =>
+				p.serviceId === firstServiceId &&
+				(p.creditsRemaining ?? 0) > 0 &&
+				!p.isLocked &&
+				(p.status ?? "active") === "active",
+		);
+		return match?.id ?? null;
+	}, [clientPackageInstances, firstServiceId]);
 
 	const selectedClassSlotService = useMemo(
 		() =>
@@ -948,6 +969,11 @@ export function useAppointmentFormState({
 				creditPoints: 0,
 			},
 			service: selectedServices.map((s) => s.name).join(", "),
+			// AVANTEJ-5: also pass the first selected service's id so the created
+			// appointment stores serviceId (Schedule Service column was "—").
+			serviceId: selectedServices[0]?.id ?? null,
+			// AVANTEJ-15: pass the resolved package instance so credits are deducted.
+			packageInstanceId: selectedPackageInstanceId,
 			remarks: newAppointment.remarks || undefined,
 			start: startDateTime,
 			end: endDateTime,

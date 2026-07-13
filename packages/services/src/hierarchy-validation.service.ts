@@ -50,6 +50,8 @@ export interface UpdateHierarchyNodeParams {
 	invoicePrefix?: string | null;
 	receiptPrefix?: string | null;
 	branchTaxRateId?: string | null;
+	// AVANTEJ-16: per-day weekly opening hours, { mon: {open,close}|null, … }.
+	openingHours?: Record<string, { open: string; close: string } | null> | null;
 }
 
 /**

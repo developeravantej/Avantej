@@ -211,14 +211,36 @@ export async function getDashboardKpis(
 			),
 		);
 
-	// 3. Active members count (scoped to hierarchy nodes)
-	const memberFilter =
-		nodeIds.length > 0 ? inArray(members.hierarchyScopeId, nodeIds) : undefined;
+	// 3. Active members count — fee-paying customers only.
+	// AVANTEJ-7: this previously counted the `members` roster (staff: admins +
+	// trainers) with no role filter, so the dashboard reported staff headcount as
+	// "active members" (124 with 0 customers). An "active member" is a
+	// customer_profile that currently holds an active package_instance — the same
+	// definition getMemberCountSeries uses. Scope to accessible branches via NAP-03.
+	const activeMembersBranchClause =
+		nodeIds.length > 0
+			? sql`AND cp.user_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
+			  )`
+			: sql``;
 
-	const membersResult = await tenantDb
-		.select({ activeCount: count() })
-		.from(members)
-		.where(and(eq(members.status, "active"), memberFilter));
+	const activeMembersResult = await tenantDb.execute<{
+		active_count: number;
+	}>(sql`
+		SELECT COUNT(DISTINCT cp.id)::int AS active_count
+		FROM customer_profiles cp
+		JOIN package_instances pi
+			ON  pi.client_id = cp.user_id
+			AND pi.status = 'active'
+			AND pi.starts_at::date <= CURRENT_DATE
+			AND pi.expires_at::date >= CURRENT_DATE
+		WHERE cp.is_deleted = false
+		${activeMembersBranchClause}
+	`);
 
 	// 3b. Churn rate — members whose last active package expired in [from, to] with no renewal
 	// "lapsed" = a customer_profile that had at least one active package that expired in [from, to]
@@ -345,7 +367,7 @@ export async function getDashboardKpis(
 		previousPeriodOrderCount: Number(prevSalesResult[0]?.orderCount ?? 0),
 		totalAppointments: Number(apptTotal[0]?.apptCount ?? 0),
 		completedAppointments: Number(apptCompleted[0]?.completedCount ?? 0),
-		activeMembersCount: Number(membersResult[0]?.activeCount ?? 0),
+		activeMembersCount: Number(activeMembersResult.rows[0]?.active_count ?? 0),
 		revenueByBranch: revByBranch.map((r) => ({
 			branchId: r.branchId,
 			branchName: r.branchName ?? null,

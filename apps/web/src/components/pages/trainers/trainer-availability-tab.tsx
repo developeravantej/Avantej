@@ -541,7 +541,7 @@ export function TrainerAvailabilityTab() {
 					trainerName={coachIntakeTrainer.trainerName}
 					open={coachIntakeOpen}
 					onOpenChange={setCoachIntakeOpen}
-					onSaved={() => {}}
+					onSaved={() => refetch()}
 				/>
 			)}
 		</>

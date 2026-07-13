@@ -180,6 +180,10 @@ export function AppointmentCalendar({
 				pricePerClient: 0,
 				notes: params.notes ?? null,
 				userId: params.userId ?? null,
+				// AVANTEJ-5: persist the selected service (Schedule Service column).
+				serviceId: params.serviceId ?? null,
+				// AVANTEJ-15: deduct a credit from the client's package instance.
+				packageInstanceId: params.packageInstanceId ?? null,
 				staffAssignments: params.staffAssignments ?? undefined,
 				recurrence: params.recurrence,
 			}),
@@ -347,6 +351,10 @@ export function AppointmentCalendar({
 			duration: appointment.duration,
 			notes: appointment.remarks,
 			userId: appointment.client?.userId ?? null,
+			// AVANTEJ-5: forward the selected service so the row stores serviceId.
+			serviceId: appointment.serviceId ?? null,
+			// AVANTEJ-15: forward the package instance so credits are deducted.
+			packageInstanceId: appointment.packageInstanceId ?? null,
 			staffAssignments: appointment.staffAssignments ?? undefined,
 			recurrence: buildRecurrenceParams(appointment),
 		});

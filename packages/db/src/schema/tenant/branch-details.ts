@@ -14,6 +14,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
 	index,
+	jsonb,
 	pgTable,
 	text,
 	timestamp,
@@ -48,6 +49,10 @@ export const branchDetails = pgTable(
 		// FK) matching the currency precedent + dodging the drift-check FK gate.
 		// resolveTaxRate prefers this over the country/org-default fallback.
 		branchTaxRateId: uuid("branch_tax_rate_id"),
+		// AVANTEJ-16: per-branch weekly opening hours. Shape:
+		// { mon: { open: "09:00", close: "18:00" } | null, tue: …, … } — a null day
+		// means closed, an absent key means "not set". Rendered by OpeningHoursTable.
+		openingHours: jsonb("opening_hours"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},

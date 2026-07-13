@@ -8,7 +8,13 @@ export default defineConfig({
 		environment: "jsdom",
 		globals: true,
 		setupFiles: ["./src/__tests__/setup.ts"],
-		include: ["src/__tests__/**/*.test.{ts,tsx}", "src/features/**/*.test.{ts,tsx}"],
+		include: [
+			"src/__tests__/**/*.test.{ts,tsx}",
+			"src/features/**/*.test.{ts,tsx}",
+			// Colocated lib tests (e.g. src/lib/gender.test.ts) — without this glob
+			// they exist on disk but never run.
+			"src/lib/**/*.test.{ts,tsx}",
+		],
 		coverage: {
 			reporter: ["text", "html"],
 			include: ["src/**/*.{ts,tsx}"],

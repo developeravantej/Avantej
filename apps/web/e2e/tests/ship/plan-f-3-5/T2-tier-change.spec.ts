@@ -25,9 +25,19 @@ import { eq } from "drizzle-orm";
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../../../fixtures/db";
-import { loginAsAdmin, signUpUser } from "../../../fixtures/auth";
+import {
+	cleanupSeededTestUsers,
+	loginAsAdmin,
+	signUpUser,
+} from "../../../fixtures/auth";
 
 test.use({ video: "on" });
+
+test.afterAll(async () => {
+	// Revoke platform-admin grants + delete throwaway @test.local users this
+	// spec seeded, even if an assertion failed mid-test (see fixtures/auth.ts).
+	await cleanupSeededTestUsers();
+});
 
 const ENV_SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL;
 const ENV_SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD;

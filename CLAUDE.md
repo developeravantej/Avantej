@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+## Before You Start (check for a rule first)
+
+**Before doing any task, check whether a rule already covers it.** Look in
+[`_rules/INDEX.md`](_rules/INDEX.md) for a rule matching the area you're about to
+touch (domains/auth, deploys, Linear issues, etc.) and read it before changing
+anything. Rules in `_rules/` are canonical and override improvisation. When you
+establish a durable new convention, add it as a rule there and link it from the index.
+
 ## Owner Context
 
 **Avantej** is Wilfred's flagship multi-tenant SaaS for gym and fitness centre management. Clients are gym owners (tenants) who manage members, trainers, packages, appointments, POS sales, installment plans, and branch-level commissions.

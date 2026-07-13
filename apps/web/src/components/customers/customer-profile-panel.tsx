@@ -30,6 +30,12 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -503,6 +509,8 @@ export function CustomerProfilePanel({
 		queryFn: () =>
 			client.appointments.list({
 				organizationId: organizationId!,
+				// AVANTEJ-10: scope to this customer, not the whole org.
+				userId: detail!.member.userId,
 				status: "confirmed",
 				limit: 3,
 			} as Parameters<typeof client.appointments.list>[0]),
@@ -515,6 +523,8 @@ export function CustomerProfilePanel({
 		queryFn: () =>
 			client.appointments.list({
 				organizationId: organizationId!,
+				// AVANTEJ-10: scope to this customer, not the whole org.
+				userId: detail!.member.userId,
 				limit: 50,
 			} as Parameters<typeof client.appointments.list>[0]),
 		enabled: !!organizationId && !!detail?.member.userId,
@@ -716,20 +726,40 @@ export function CustomerProfilePanel({
 							// Backend rejects soft-deleting unclaimed profiles (placeholder
 							// user row must be resolved via claim link first) — disable the
 							// button instead of letting the request 400.
-							<button
-								type="button"
-								onClick={() => setDeleteDialogOpen(true)}
-								disabled={detail?.profile?.isUnclaimed ?? false}
-								title={
-									detail?.profile?.isUnclaimed
-										? "Unclaimed profiles can't be deleted. Send the customer their claim link first."
-										: undefined
-								}
-								className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#fecaca] bg-white px-3.5 py-1.5 text-[13px] font-medium text-rose-500 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<Trash2 className="h-3.5 w-3.5" />
-								Delete
-							</button>
+							// AVANTEJ-13: explain the disabled state with a real (Radix)
+							// tooltip. A disabled <button> swallows pointer events, so the
+							// trigger wraps a <span> per the repo pattern; the plain `title`
+							// attr was unreliable/invisible on disabled controls.
+							(() => {
+								const isUnclaimed = detail?.profile?.isUnclaimed ?? false;
+								const deleteBtn = (
+									<button
+										type="button"
+										onClick={() => setDeleteDialogOpen(true)}
+										disabled={isUnclaimed}
+										className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#fecaca] bg-white px-3.5 py-1.5 text-[13px] font-medium text-rose-500 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										<Trash2 className="h-3.5 w-3.5" />
+										Delete
+									</button>
+								);
+								if (!isUnclaimed) return deleteBtn;
+								return (
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="ml-auto">{deleteBtn}</span>
+											</TooltipTrigger>
+											<TooltipContent>
+												<p>
+													Unclaimed profiles can&apos;t be deleted. Send the
+													customer their claim link first.
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								);
+							})()
 						))}
 				</div>
 

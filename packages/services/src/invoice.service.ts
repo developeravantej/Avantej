@@ -1,6 +1,7 @@
 import { eq, and, asc, desc, gte, lte, inArray, sql } from "drizzle-orm";
 import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { paymentItems } from "@avantej-core/db/schema/tenant/payment-items";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
@@ -237,6 +238,135 @@ async function resolveInvoiceBranchProfile(
 		taxId: detail?.taxId ?? null,
 		address: detail?.address ?? null,
 		currency,
+	};
+}
+
+/**
+ * The payment_items snapshot split for the printable invoice document:
+ * goods rows (package/booking/fee/product/…), the snapshotted `type='tax'`
+ * rows, and `type='discount'` rows, plus the reconciliation guard.
+ */
+export type ClassifiedInvoiceItems = {
+	goodsItems: (typeof paymentItems.$inferSelect)[];
+	taxItems: (typeof paymentItems.$inferSelect)[];
+	discountItems: (typeof paymentItems.$inferSelect)[];
+	/** Σ goods totalPrice (pre-tax, pre-discount), in cents. */
+	subtotalCents: number;
+	/**
+	 * True only when Σ ALL item totals === invoices.totalAmount (the POS
+	 * convention: subtotal − discounts + tax = total). Manual/legacy invoices
+	 * whose snapshot disagrees — or that have no items at all — do NOT
+	 * reconcile, and the document must suppress the SST breakdown rather than
+	 * print a fabricated tax split.
+	 */
+	reconciles: boolean;
+};
+
+/** Classify an invoice's payment_items snapshot. Pure — unit-tested. */
+export function classifyInvoiceItems(
+	items: (typeof paymentItems.$inferSelect)[],
+	invoiceTotalCents: number,
+): ClassifiedInvoiceItems {
+	const goodsItems: (typeof paymentItems.$inferSelect)[] = [];
+	const taxItems: (typeof paymentItems.$inferSelect)[] = [];
+	const discountItems: (typeof paymentItems.$inferSelect)[] = [];
+	for (const item of items) {
+		if (item.itemType === "tax") taxItems.push(item);
+		else if (item.itemType === "discount") discountItems.push(item);
+		else goodsItems.push(item);
+	}
+	const sumAll = items.reduce((s, i) => s + i.totalPrice, 0);
+	return {
+		goodsItems,
+		taxItems,
+		discountItems,
+		subtotalCents: goodsItems.reduce((s, i) => s + i.totalPrice, 0),
+		reconciles: items.length > 0 && sumAll === invoiceTotalCents,
+	};
+}
+
+/**
+ * Installment-plan balance summary for the printed document. For installment
+ * sales, Paid to date / Balance due MUST come from here — the plan total
+ * includes the installment premium, and invoice.amountPaid goes stale after
+ * installment #1 by design (installment confirmations don't write it back).
+ */
+export type InvoiceInstallmentSummary = {
+	/** Σ installment amounts — the premium-inclusive plan total, in cents. */
+	planTotalCents: number;
+	/** Σ paid installments (amountPaid, falling back to amount), in cents. */
+	paidToDateCents: number;
+	totalCount: number;
+};
+
+export type InvoicePrintView = ClassifiedInvoiceItems & {
+	invoice: typeof invoices.$inferSelect;
+	items: (typeof paymentItems.$inferSelect)[];
+	/** Resolved via the linked sales order (invoices carry no branchId). */
+	branchId: string | null;
+	salesOrder: typeof salesOrders.$inferSelect | null;
+	/** Null for non-installment sales. */
+	installmentSummary: InvoiceInstallmentSummary | null;
+};
+
+/**
+ * Everything the branded, printable invoice document needs from the tenant DB
+ * in one call: the invoice, its classified payment_items snapshot, the linked
+ * sales order (branch scope + customerType), and the installment summary.
+ * Identity/branch-display/customer-contact blocks are resolved at the router
+ * layer (they need the control-panel DB and R2). Null when the invoice id
+ * does not exist.
+ */
+export async function getInvoicePrintView(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+): Promise<InvoicePrintView | null> {
+	const invoice = await getInvoiceById(tenantDb, id);
+	if (!invoice) return null;
+
+	const items = invoice.paymentId
+		? await tenantDb.query.paymentItems.findMany({
+				where: eq(paymentItems.paymentId, invoice.paymentId),
+				orderBy: [asc(paymentItems.createdAt)],
+			})
+		: [];
+
+	// Nullable pre-0051 linkage degrades gracefully: no sales order → no branch
+	// scope and no installment summary, never a throw.
+	let salesOrder: typeof salesOrders.$inferSelect | null = null;
+	let installmentSummary: InvoiceInstallmentSummary | null = null;
+	if (invoice.salesOrderId) {
+		const [order, allInstallments] = await Promise.all([
+			tenantDb.query.salesOrders.findFirst({
+				where: eq(salesOrders.id, invoice.salesOrderId),
+			}),
+			tenantDb.query.installments.findMany({
+				where: eq(installments.salesOrderId, invoice.salesOrderId),
+				orderBy: [asc(installments.installmentNumber)],
+			}),
+		]);
+		salesOrder = order ?? null;
+		if (allInstallments.length > 0) {
+			installmentSummary = {
+				planTotalCents: allInstallments.reduce((s, i) => s + i.amount, 0),
+				paidToDateCents: allInstallments
+					.filter((i) => i.status === "paid")
+					.reduce(
+						(s, i) => s + (i.amountPaid > 0 ? i.amountPaid : i.amount),
+						0,
+					),
+				totalCount: allInstallments.length,
+			};
+		}
+	}
+
+	return {
+		invoice,
+		items,
+		...classifyInvoiceItems(items, invoice.totalAmount),
+		branchId: salesOrder?.branchId ?? null,
+		salesOrder,
+		installmentSummary,
 	};
 }
 

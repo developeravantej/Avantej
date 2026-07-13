@@ -937,7 +937,19 @@ export async function processRefund(
 				.for("update");
 
 			if (order) {
-				if (order.status === "cancelled") {
+				// AVANTEJ-9: a fully-refunded sale keeps status='confirmed'/'completed'
+				// (a refund is NOT a cancellation), so detect "already fully refunded"
+				// from refund_status / refunded amount. Also block a genuinely cancelled
+				// sale (cancelSalesOrder sets status=cancelled + cancelledAmount but
+				// leaves refundedAmountCents=0) so a later refund cannot re-subtract.
+				if (
+					order.status === "cancelled" ||
+					order.refundStatus === "processed" ||
+					Math.max(
+						order.refundedAmountCents ?? 0,
+						order.cancelledAmount ?? 0,
+					) >= order.totalAmount
+				) {
 					throw {
 						code: "BAD_REQUEST",
 						message: "Sale is already fully refunded",
@@ -953,15 +965,24 @@ export async function processRefund(
 					order.cancellationNumber ??
 					(await generateCancellationNumber(tx, now));
 
-				const newStatus =
-					newCancelledAmount >= order.totalAmount ? "cancelled" : order.status;
+				// AVANTEJ-9: a refund is NOT a cancellation. We must NOT flip the sales
+				// order to 'cancelled' on a full refund — the Sales KPI excludes
+				// 'cancelled' orders from revenue/collected while still summing
+				// refunded_amount_cents, so a fully-refunded sale vanished from revenue
+				// AND was subtracted again as a refund, driving Net Collected negative
+				// (double-count). The refund is tracked purely via refund_status +
+				// refunded_amount_cents; genuine cancellations go through
+				// cancelSalesOrder(). Full refunds now behave like partial refunds
+				// w.r.t. order.status (unchanged).
+				const isFullRefund = newCancelledAmount >= order.totalAmount;
 
 				// Migration A: maintain refund_status + refunded_amount_cents on sales_orders
 				// so the Sales page KPI / refundStatus filter reflects reality.
 				// - 'processed' when fully refunded (cumulative >= total)
 				// - 'partial' otherwise
-				const newRefundStatus: "partial" | "processed" =
-					newCancelledAmount >= order.totalAmount ? "processed" : "partial";
+				const newRefundStatus: "partial" | "processed" = isFullRefund
+					? "processed"
+					: "partial";
 
 				await tx
 					.update(salesOrders)
@@ -972,7 +993,7 @@ export async function processRefund(
 						// Only set reason if not already set (preserve first refund's reason)
 						cancellationReason: order.cancellationReason ?? existing.reason,
 						cancelledBy: params.actor.userId,
-						status: newStatus,
+						// status intentionally left unchanged (AVANTEJ-9) — refund ≠ cancellation
 						refundStatus: newRefundStatus,
 						refundedAmountCents: newCancelledAmount,
 						updatedAt: now,
@@ -981,7 +1002,7 @@ export async function processRefund(
 
 				// Full refund → cancel associated package instances
 				// Find package instances via: salesOrder → invoices → payments → packageInstances
-				if (newStatus === "cancelled") {
+				if (isFullRefund) {
 					const invoiceRows = await tx
 						.select({ paymentId: invoices.paymentId })
 						.from(invoices)

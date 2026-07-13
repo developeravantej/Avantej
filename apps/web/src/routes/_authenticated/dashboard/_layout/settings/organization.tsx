@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Lock } from "lucide-react";
+import { BillingIdentityCard } from "@/components/pages/settings/billing-identity-card";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/organization",
@@ -260,7 +261,7 @@ function OrganizationSettingsPage() {
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="max-w-[720px] space-y-5 px-6 py-6 pb-24"
+				className="max-w-[720px] space-y-5 px-6 pt-6"
 			>
 				{/* General Settings */}
 				<FormSection
@@ -406,6 +407,15 @@ function OrganizationSettingsPage() {
 					)}
 				</FormSection>
 			</form>
+
+			{/* Billing identity — self-contained form; must NOT nest inside the
+			    settings <form> above (nested forms are invalid HTML and break submit). */}
+			<div className="max-w-[720px] px-6 pt-5 pb-24">
+				<BillingIdentityCard
+					organizationId={organizationId}
+					isAdmin={isAdmin}
+				/>
+			</div>
 
 			{/* Sticky footer */}
 			<form.Subscribe selector={(state) => state.isSubmitting}>

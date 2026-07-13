@@ -2,6 +2,8 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { Download, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { type SalesRow } from "@/components/tables/sales/view/columns";
 import { type PaymentRow } from "@/components/tables/payment/view/columns";
@@ -13,7 +15,6 @@ import { getPeriodDates, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import type { KpiSummary } from "@/features/sales/sales-view.types";
 import { KpiStrip } from "@/features/sales/components/KpiStrip";
 import { SalesTab } from "@/features/sales/components/SalesTab";
 import { PaymentsTab } from "@/features/sales/components/PaymentsTab";
@@ -139,6 +140,59 @@ function RouteComponent() {
 		v: "all" | "none" | "pending" | "partial" | "processed",
 	) {
 		navigate({ search: (prev) => ({ ...prev, refundStatus: v }) });
+	}
+
+	const [exporting, setExporting] = useState(false);
+
+	async function handleExportCsv() {
+		if (!organizationId) return;
+		setExporting(true);
+		try {
+			const result = await client.salesOrders.exportCsv({
+				organizationId,
+				from: derivedFilters.from
+					? `${derivedFilters.from}T00:00:00.000Z`
+					: undefined,
+				to: derivedFilters.to
+					? `${derivedFilters.to}T23:59:59.999Z`
+					: undefined,
+				status: (["draft", "confirmed", "completed", "cancelled"].includes(
+					status,
+				)
+					? status
+					: undefined) as
+					| "draft"
+					| "confirmed"
+					| "completed"
+					| "cancelled"
+					| undefined,
+				refundStatus:
+					refundStatus !== "all"
+						? (refundStatus as "none" | "pending" | "partial" | "processed")
+						: undefined,
+				branchId: scopeNodeId,
+			});
+			const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `sales-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+			a.click();
+			URL.revokeObjectURL(url);
+			if (result.truncated) {
+				toast.warning(
+					`Export truncated — ${result.totalMatching} total matches. Narrow your date range for a complete export.`,
+				);
+			} else {
+				toast.success("CSV exported successfully.");
+			}
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Export failed. Please try again.",
+			);
+		} finally {
+			setExporting(false);
+		}
 	}
 
 	// ── Queries ─────────────────────────────────────────────────────────────
@@ -304,10 +358,12 @@ function RouteComponent() {
 				<div className="ml-auto flex items-center gap-2">
 					<button
 						type="button"
-						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+						onClick={handleExportCsv}
+						disabled={exporting || !organizationId}
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3] disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<Download className="h-3.5 w-3.5" />
-						Export CSV
+						{exporting ? "Exporting…" : "Export CSV"}
 					</button>
 					<div className="mx-1 h-6 w-px bg-[#e5e5e5]" />
 					<Link to="/dashboard/sales/create">
@@ -428,10 +484,6 @@ function RouteComponent() {
 									isError={invoicesError}
 									error={invoicesErrorObj}
 									refetch={invoicesRefetch}
-									onSelectPayment={(id) => {
-										// No-op: history dialog lives in payment/view.tsx; sales page is list-only
-										console.info("[sales/payments] payment selected:", id);
-									}}
 								/>
 							)}
 							{tab === "cancelled" && organizationId && (
