@@ -499,34 +499,32 @@ export function CustomerProfilePanel({
 		],
 	});
 
+	// Use orpc.appointments.list.queryOptions (not a hand-rolled queryKey) so these
+	// panel queries share the orpc key namespace and get refreshed when an
+	// appointment mutation invalidates orpc.appointments.list.key().
 	const { data: upcomingAppts } = useQuery({
-		queryKey: [
-			"appointments",
-			"upcoming",
-			organizationId,
-			detail?.member.userId,
-		],
-		queryFn: () =>
-			client.appointments.list({
+		...orpc.appointments.list.queryOptions({
+			input: {
 				organizationId: organizationId!,
 				// AVANTEJ-10: scope to this customer, not the whole org.
-				userId: detail!.member.userId,
+				userId: detail?.member.userId,
 				status: "confirmed",
 				limit: 3,
-			} as Parameters<typeof client.appointments.list>[0]),
+			} as Parameters<typeof client.appointments.list>[0],
+		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
 
 	const { data: allAppts } = useQuery({
-		queryKey: ["appointments", "all", organizationId, detail?.member.userId],
-		queryFn: () =>
-			client.appointments.list({
+		...orpc.appointments.list.queryOptions({
+			input: {
 				organizationId: organizationId!,
 				// AVANTEJ-10: scope to this customer, not the whole org.
-				userId: detail!.member.userId,
+				userId: detail?.member.userId,
 				limit: 50,
-			} as Parameters<typeof client.appointments.list>[0]),
+			} as Parameters<typeof client.appointments.list>[0],
+		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
