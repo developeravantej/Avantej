@@ -118,6 +118,16 @@ export function ClassSlotsPage() {
 		enabled: !!organizationId,
 	});
 
+	// Server-aggregated KPIs over ALL slots in the current branch scope — not just
+	// the loaded page. Same filter inputs as the list query above so the tiles
+	// and the table describe the same set of slots.
+	const { data: kpiData } = useQuery({
+		...orpc.classSlots.kpis.queryOptions({
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
+		}),
+		enabled: !!organizationId,
+	});
+
 	const { data: services = [] } = useQuery({
 		...orpc.services.list.queryOptions({
 			input: { organizationId: organizationId! },
@@ -326,11 +336,13 @@ export function ClassSlotsPage() {
 	};
 
 	// ---------------------------------------------------------------------------
-	// KPI computation (client-side, loaded rows only — see computeClassSlotKpis)
+	// KPIs — server-aggregated over the full filter set. While that query is in
+	// flight, fall back to the client compute over loaded rows so the tiles show
+	// a sane (if partial) figure instead of flashing zeros.
 	// ---------------------------------------------------------------------------
 
 	const { totalSlots, avgFillRate, totalWaitlisted, projectedRevenueCents } =
-		computeClassSlotKpis(classSlots);
+		kpiData ?? computeClassSlotKpis(classSlots);
 
 	// ---------------------------------------------------------------------------
 	// Filtered flat slot list
@@ -416,7 +428,7 @@ export function ClassSlotsPage() {
 					<KpiTile
 						label="Total Slots"
 						value={<span className="font-mono tabular-nums">{totalSlots}</span>}
-						sub="active slots (loaded)"
+						sub="active slots"
 					/>
 					<KpiTile
 						label="Avg Fill Rate"
@@ -427,14 +439,14 @@ export function ClassSlotsPage() {
 							</>
 						}
 						fillPct={avgFillRate}
-						sub="of loaded slots"
+						sub="across all slots"
 					/>
 					<KpiTile
 						label="Waitlisted"
 						value={
 							<span className="font-mono tabular-nums">{totalWaitlisted}</span>
 						}
-						sub="of loaded slots"
+						sub="across all slots"
 						accent={totalWaitlisted > 0 ? "amber" : "default"}
 					/>
 					<KpiTile
@@ -444,7 +456,7 @@ export function ClassSlotsPage() {
 								{formatPrice(projectedRevenueCents)}
 							</span>
 						}
-						sub="capacity × price, loaded slots"
+						sub="capacity × price, all slots"
 					/>
 				</div>
 

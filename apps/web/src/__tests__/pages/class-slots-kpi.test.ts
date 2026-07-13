@@ -31,7 +31,10 @@ function slot(
 	};
 }
 
-describe("computeClassSlotKpis (client-side, loaded rows only)", () => {
+// computeClassSlotKpis is now the client-side FALLBACK used only while the
+// server-aggregated classSlots.kpis query is in flight; these cases lock its
+// math (identical to the server's aggregateClassSlotKpis reference spec).
+describe("computeClassSlotKpis (client-side loading fallback)", () => {
 	it("returns zeros for an empty list", () => {
 		expect(computeClassSlotKpis([])).toEqual({
 			totalSlots: 0,
