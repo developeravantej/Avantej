@@ -16,7 +16,7 @@
     "e2e:install": "playwright install chromium",
     "wrangler:dev": "wrangler dev --port=3022",
     "deploy": "CF_DEPLOY=true vite build && wrangler deploy",
-    "deploy:prod": "VITE_SERVER_URL=https://api.avantej.com CF_DEPLOY=true vite build && wrangler deploy --name avantej-core-web-prod"
+    "deploy:prod": "VITE_SERVER_URL=https://move-api.avantej.com CF_DEPLOY=true vite build && wrangler deploy"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",
