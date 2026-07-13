@@ -22,6 +22,7 @@ import {
 import {
 	auditEmailDomainChange,
 	getControlPanelDb,
+	getPgErrorCode,
 	LOCAL_PART_REGEX,
 	mapResendStatus,
 	RESEND_REGIONS,
@@ -77,14 +78,28 @@ export const domainCrudProcedures = {
 				region: input.region,
 			});
 
-			const row = await createEmailDomain(cpDb, {
-				organizationId: input.organizationId,
-				resendDomainId: resendDomain.id,
-				domain: input.domain,
-				fromName: input.fromName,
-				defaultLocalPart: input.defaultLocalPart ?? null,
-				dnsRecords: resendDomain.records,
-			});
+			let row: Awaited<ReturnType<typeof createEmailDomain>>;
+			try {
+				row = await createEmailDomain(cpDb, {
+					organizationId: input.organizationId,
+					resendDomainId: resendDomain.id,
+					domain: input.domain,
+					fromName: input.fromName,
+					defaultLocalPart: input.defaultLocalPart ?? null,
+					dnsRecords: resendDomain.records,
+				});
+			} catch (e) {
+				// Drizzle wraps the pg error; the unique-violation code (23505)
+				// lives on `.cause`, not the top-level message. Match the code via
+				// the cause-walking helper rather than string-matching, which misses
+				// the wrapped case and leaks a raw 500. Mirrors aliases.procedures.ts.
+				if (getPgErrorCode(e) === "23505") {
+					throw new ORPCError("CONFLICT", {
+						message: "This domain is already registered",
+					});
+				}
+				throw e;
+			}
 
 			await auditEmailDomainChange(context, {
 				action: "email_domain.registered",

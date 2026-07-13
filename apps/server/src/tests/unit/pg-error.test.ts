@@ -1,5 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { handleDbError } from "@avantej-core/services/lib/pg-error";
+import {
+	getPgErrorCode,
+	handleDbError,
+} from "@avantej-core/services/lib/pg-error";
 
 function makePgError(
 	code: string,
@@ -53,5 +56,51 @@ describe("handleDbError", () => {
 				message: expect.stringContaining("OrderService"),
 			}),
 		);
+	});
+
+	test("walks Drizzle-wrapped error (code on .cause) to CONFLICT for 23505", () => {
+		// Drizzle throws DrizzleQueryError; the real pg code lives on `.cause`.
+		const wrapped = new Error("Failed query: insert into …") as Error & {
+			cause: unknown;
+		};
+		wrapped.cause = makePgError("23505", "duplicate key value");
+		expect(() => handleDbError(wrapped, "MyContext")).toThrow(
+			expect.objectContaining({ code: "CONFLICT" }),
+		);
+	});
+
+	test("walks a nested .cause chain to find the pg code", () => {
+		const inner = makePgError("23503", "fk violation");
+		const mid = new Error("mid") as Error & { cause: unknown };
+		mid.cause = inner;
+		const outer = new Error("outer") as Error & { cause: unknown };
+		outer.cause = mid;
+		expect(() => handleDbError(outer, "MyContext")).toThrow(
+			expect.objectContaining({ code: "BAD_REQUEST" }),
+		);
+	});
+});
+
+describe("getPgErrorCode", () => {
+	test("returns top-level code when present", () => {
+		expect(getPgErrorCode(makePgError("23505"))).toBe("23505");
+	});
+
+	test("returns the code from a wrapped .cause", () => {
+		const wrapped = new Error("wrapper") as Error & { cause: unknown };
+		wrapped.cause = makePgError("23514");
+		expect(getPgErrorCode(wrapped)).toBe("23514");
+	});
+
+	test("returns undefined when no pg code exists in the chain", () => {
+		expect(getPgErrorCode(new Error("plain"))).toBeUndefined();
+		expect(getPgErrorCode({ message: "raw" })).toBeUndefined();
+		expect(getPgErrorCode(undefined)).toBeUndefined();
+	});
+
+	test("stops at bounded depth on a self-referential cause cycle", () => {
+		const a = new Error("a") as Error & { cause: unknown };
+		a.cause = a; // cycle
+		expect(getPgErrorCode(a)).toBeUndefined();
 	});
 });
