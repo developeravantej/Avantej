@@ -15,7 +15,7 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Type check
         run: bun check-types
@@ -24,7 +24,7 @@ jobs:
     name: Web Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Run web tests
         # `bun run test` executes the package script (`vitest run`). Plain
@@ -36,7 +36,7 @@ jobs:
     name: Server Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Run server unit tests
         # Per-file isolated runner: bun's process-global mock.module poisons
@@ -57,7 +57,7 @@ jobs:
           - packages/api
           - packages/services
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Run package tests
         # Per-file isolated runner: bun's process-global mock.module poisons
@@ -72,7 +72,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Build
         run: bun run build
@@ -81,7 +81,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Oxlint
         run: bun check
@@ -90,7 +90,7 @@ jobs:
     name: Tenant API perimeter
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Check tenantProcedure rollout invariants
         run: bun run ci:check-tenant-perimeter
@@ -103,7 +103,7 @@ jobs:
     name: Format (Biome)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/bun-setup
       - name: Check formatting
         run: bunx biome format packages/api packages/services packages/db packages/types e2e scripts/ci
@@ -112,7 +112,7 @@ jobs:
     name: E2E suite drift guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Pure Node, no servers / no report.json (gitignored) — asserts the committed
       # specs, journeys, and coverage ledger stay in sync, so a renamed/deleted
       # spec can't silently drop a journey or claimed coverage. See _e2e/reconcile.mjs.
