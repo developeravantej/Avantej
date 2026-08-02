@@ -16,7 +16,7 @@
 		"test": "bun test src"
 	},
 	"devDependencies": {
-		"@types/node": "^22.13.11",
+		"@types/node": "^26.1.2",
 		"tsdown": "catalog:"
 	},
 	"peerDependencies": {
