@@ -86,19 +86,19 @@
     "refine:members-ghl-type": "node scripts/dedupe-members-ghl-type.mjs"
   },
   "dependencies": {
-    "boneyard-js": "^1.8.1",
-    "dotenv": "^17.2.2",
-    "zod": "^4.1.11"
+    "boneyard-js": "^1.9.0",
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.0",
-    "@playwright/test": "^1.59.1",
+    "@biomejs/biome": "^2.5.9",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.13.11",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
-    "oxlint": "^1.12.0",
-    "tsdown": "^0.15.5",
-    "turbo": "^2.5.4"
+    "oxlint": "^1.79.0",
+    "tsdown": "^0.22.14",
+    "turbo": "^2.10.11"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": [
