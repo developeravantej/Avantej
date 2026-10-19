@@ -23,6 +23,6 @@
 	},
 	"dependencies": {
 		"@avantej-core/db": "workspace:*",
-		"drizzle-orm": "^0.44.2"
+		"drizzle-orm": "^0.45.4"
 	}
 }
